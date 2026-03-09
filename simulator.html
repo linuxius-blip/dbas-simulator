@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DBAS Crowdsourcing Simulator</title>
+<style>
+:root {
+  --primary: #1a1a2e;
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --text: #2c3e50;
+  --text-light: #6c757d;
+  --border: #e0e4ea;
+  --highlight: #e94560;
+  --define: #2980b9;
+  --broadcast: #8e44ad;
+  --attract: #d35400;
+  --select: #27ae60;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --radius: 10px;
+  --lego-color: #e3000b;
+  --siemens-color: #009999;
+  --spotify-color: #1DB954;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── PROGRESS BAR ── */
+#progress-bar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--primary); display: flex; align-items: center;
+  padding: 0 20px; height: 52px; gap: 0;
+}
+.prog-step { display: flex; align-items: center; color: rgba(255,255,255,0.4); font-size: 12px; font-weight: 600; gap: 7px; white-space: nowrap; }
+.prog-step.active { color: #fff; }
+.prog-step.done { color: rgba(255,255,255,0.65); }
+.prog-num { width: 22px; height: 22px; border-radius: 50%; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; }
+.prog-step.active .prog-num { background: var(--highlight); border-color: var(--highlight); }
+.prog-step.done .prog-num { background: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.65); color: var(--primary); }
+.prog-connector { flex: 1; height: 2px; background: rgba(255,255,255,0.15); margin: 0 8px; min-width: 12px; }
+.prog-label { display: none; }
+@media (min-width: 560px) { .prog-label { display: inline; } }
+
+/* ── SCREENS ── */
+.screen { display: none; max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
+.screen.active { display: block; }
+
+/* ── BUTTONS ── */
+.btn-primary { background: var(--highlight); color: #fff; border: none; border-radius: 8px; padding: 13px 32px; font-size: 15px; font-weight: 700; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; box-shadow: 0 4px 14px rgba(233,69,96,0.4); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(233,69,96,0.5); }
+.btn-primary:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; transform: none; }
+.btn-secondary { background: transparent; color: var(--text); border: 2px solid var(--border); border-radius: 8px; padding: 11px 22px; font-size: 14px; font-weight: 600; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--primary); }
+
+/* ── WELCOME ── */
+#screen-welcome { text-align: center; padding-top: 52px; }
+.welcome-logo { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-light); margin-bottom: 12px; }
+.welcome-title { font-size: clamp(26px,5vw,42px); font-weight: 800; color: var(--primary); line-height: 1.15; margin-bottom: 14px; }
+.welcome-title span { color: var(--highlight); }
+.welcome-sub { font-size: 16px; color: var(--text-light); max-width: 560px; margin: 0 auto 32px; line-height: 1.6; }
+.welcome-steps { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 14px; max-width: 740px; margin: 0 auto 36px; text-align: left; }
+.ws-card { background: var(--card); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); border-top: 3px solid var(--border); }
+.ws-card.c1 { border-top-color: var(--define); }
+.ws-card.c2 { border-top-color: var(--broadcast); }
+.ws-card.c3 { border-top-color: var(--attract); }
+.ws-card.c4 { border-top-color: var(--select); }
+.ws-card.c5 { border-top-color: var(--highlight); }
+.ws-num { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--text-light); margin-bottom: 4px; }
+.ws-title { font-size: 14px; font-weight: 800; color: var(--primary); }
+.ws-desc { font-size: 12px; color: var(--text-light); margin-top: 3px; line-height: 1.4; }
+
+/* ── SCENARIO BADGE ── */
+.scenario-header { display: flex; align-items: center; gap: 14px; background: var(--card); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 22px; box-shadow: var(--shadow); }
+.scenario-badge { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #fff; padding: 5px 13px; border-radius: 20px; flex-shrink: 0; }
+.scenario-badge.LEGO    { background: var(--lego-color); }
+.scenario-badge.SIEMENS { background: var(--siemens-color); }
+.scenario-badge.SPOTIFY { background: var(--spotify-color); }
+.scenario-header-text h2 { font-size: 17px; font-weight: 800; color: var(--primary); }
+.scenario-header-text p  { font-size: 13px; color: var(--text-light); margin-top: 2px; }
+.scenario-progress { margin-left: auto; font-size: 12px; color: var(--text-light); white-space: nowrap; flex-shrink: 0; }
+
+/* ── DECISION FORM ── */
+.screen-subtitle { font-size: 14px; color: var(--text-light); margin-bottom: 20px; line-height: 1.5; }
+.decision-counter { font-size: 13px; color: var(--text-light); margin-bottom: 10px; text-align: right; }
+.decision-counter span { font-weight: 700; color: var(--text); }
+.stage-block { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
+.stage-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; cursor: pointer; border-bottom: 1px solid var(--border); user-select: none; }
+.stage-tag { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #fff; padding: 4px 11px; border-radius: 20px; }
+.stage-tag.define    { background: var(--define); }
+.stage-tag.broadcast { background: var(--broadcast); }
+.stage-tag.attract   { background: var(--attract); }
+.stage-tag.select    { background: var(--select); }
+.stage-desc { font-size: 12px; color: var(--text-light); flex: 1; }
+.stage-toggle { font-size: 16px; color: var(--text-light); margin-left: auto; transition: transform 0.2s; }
+.stage-block.collapsed .stage-toggle { transform: rotate(-90deg); }
+.stage-body { padding: 0 18px; }
+.stage-block.collapsed .stage-body { display: none; }
+.decision-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.decision-row:last-child { border-bottom: none; }
+.decision-label { font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 3px; }
+.decision-hint { font-size: 12px; color: var(--text-light); margin-bottom: 10px; }
+.decision-options { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 9px; }
+.radio-option { display: none; }
+.radio-label { display: flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text); transition: border-color 0.15s, background 0.15s; user-select: none; }
+.radio-label:hover { border-color: #999; }
+.radio-option:checked + .radio-label { border-color: var(--highlight); background: rgba(233,69,96,0.06); color: var(--primary); }
+.radio-dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid currentColor; flex-shrink: 0; position: relative; }
+.radio-option:checked + .radio-label .radio-dot::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: var(--highlight); }
+.just-label { font-size: 12px; color: var(--text-light); margin-bottom: 4px; display: block; }
+.just-field { width: 100%; padding: 9px 11px; font-size: 13px; border: 1.5px solid var(--border); border-radius: 8px; font-family: inherit; color: var(--text); resize: vertical; min-height: 58px; transition: border-color 0.15s; }
+.just-field:focus { outline: none; border-color: var(--highlight); }
+.just-field.error { border-color: var(--highlight); }
+.just-counter { text-align: right; font-size: 11px; color: var(--text-light); margin-top: 3px; }
+.just-counter.short { color: #e67e22; }
+.error-banner { background: rgba(233,69,96,0.1); border: 1px solid var(--highlight); border-radius: 8px; padding: 9px 14px; font-size: 13px; color: #c0392b; margin-top: 10px; display: none; }
+.run-row { display: flex; justify-content: flex-end; align-items: center; padding: 20px 0 4px; gap: 10px; }
+.run-hint { font-size: 13px; color: var(--text-light); }
+
+/* ── RESULTS ── */
+.results-hero { background: var(--primary); border-radius: var(--radius); padding: 22px 26px; color: #fff; margin-bottom: 22px; }
+.results-hero h2 { font-size: 19px; font-weight: 800; margin-bottom: 4px; }
+.results-hero p { font-size: 13px; opacity: 0.7; }
+.panel { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 18px; overflow: hidden; }
+.panel-header { display: flex; align-items: center; gap: 9px; padding: 13px 18px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.panel-num { width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.panel-title { font-size: 14px; font-weight: 800; color: var(--primary); }
+.panel-body { padding: 18px; }
+.summary-table { width: 100%; border-collapse: collapse; }
+.summary-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); padding: 7px 10px; border-bottom: 2px solid var(--border); }
+.summary-table td { padding: 11px 10px; font-size: 14px; border-bottom: 1px solid var(--border); }
+.summary-table tr:last-child td { border-bottom: none; }
+.metric-name { font-weight: 700; color: var(--primary); }
+.metric-def { display: block; font-size: 11px; font-weight: 400; color: var(--text-light); margin-top: 2px; }
+.metric-value { font-size: 19px; font-weight: 800; color: var(--highlight); }
+.metric-bench { font-size: 12px; color: var(--text-light); }
+.bench-badge { font-size: 11px; background: var(--bg); color: var(--text-light); border-radius: 20px; padding: 2px 8px; font-weight: 600; }
+.vol-box { background: var(--bg); border-radius: 8px; padding: 14px; font-size: 13px; margin-bottom: 14px; }
+.vol-line { display: flex; justify-content: space-between; line-height: 2; }
+.vol-line .vl { color: var(--text-light); }
+.vol-line .vv { font-weight: 700; color: var(--primary); }
+.vol-total { font-size: 15px; font-weight: 800; color: var(--highlight); border-top: 2px solid var(--border); margin-top: 6px; padding-top: 6px; }
+.modifier-section { margin-bottom: 18px; }
+.modifier-section:last-child { margin-bottom: 0; }
+.mod-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: var(--text-light); }
+.modifier-table { width: 100%; border-collapse: collapse; }
+.modifier-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); padding: 5px 9px; border-bottom: 2px solid var(--border); }
+.modifier-table td { padding: 8px 9px; font-size: 12px; border-bottom: 1px solid var(--border); }
+.modifier-table tr:last-child td { border-bottom: none; }
+.dc { font-weight: 700; color: var(--primary); width: 130px; font-size: 12px; }
+.cc { color: var(--text); font-size: 12px; }
+.ef { font-weight: 800; text-align: right; width: 55px; }
+.delta-pos { color: #27ae60; }
+.delta-neg { color: var(--highlight); }
+.delta-zero { color: #bbb; }
+.rc { font-size: 12px; color: var(--text-light); }
+.net-row { background: var(--bg); }
+.net-row td { font-weight: 800; font-size: 13px; }
+.diag-block { border-left: 4px solid var(--border); padding: 11px 14px; margin-bottom: 14px; border-radius: 0 8px 8px 0; }
+.diag-block:last-child { margin-bottom: 0; }
+.diag-block.neg  { border-left-color: var(--highlight); background: rgba(233,69,96,0.04); }
+.diag-block.warn { border-left-color: var(--attract); background: rgba(211,84,0,0.04); }
+.diag-block.pos  { border-left-color: var(--select); background: rgba(39,174,96,0.04); }
+.diag-block.info { border-left-color: var(--define); background: rgba(41,128,185,0.04); }
+.diag-block h4 { font-size: 12px; font-weight: 800; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+.diag-block.neg h4  { color: var(--highlight); }
+.diag-block.warn h4 { color: var(--attract); }
+.diag-block.pos h4  { color: var(--select); }
+.diag-block.info h4 { color: var(--define); }
+.diag-block p { font-size: 13px; line-height: 1.65; color: var(--text); }
+.hl { font-weight: 700; background: rgba(233,69,96,0.1); border-radius: 4px; padding: 1px 5px; color: var(--primary); }
+.replay-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(190px,1fr)); gap: 9px; }
+.replay-chip { background: var(--bg); border-radius: 8px; padding: 9px 11px; border-left: 3px solid var(--border); }
+.replay-chip.define    { border-left-color: var(--define); }
+.replay-chip.broadcast { border-left-color: var(--broadcast); }
+.replay-chip.attract   { border-left-color: var(--attract); }
+.replay-chip.select    { border-left-color: var(--select); }
+.rc-dim { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); }
+.rc-choice { font-size: 13px; font-weight: 700; color: var(--primary); margin: 2px 0; }
+.rc-just { font-size: 12px; color: var(--text-light); line-height: 1.4; margin-top: 3px; }
+.next-row { display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; }
+
+/* ── COMPARISON ── */
+.comparison-table { width: 100%; border-collapse: collapse; }
+.comparison-table th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid var(--border); color: var(--text-light); }
+.comparison-table th.lego    { color: var(--lego-color); }
+.comparison-table th.siemens { color: var(--siemens-color); }
+.comparison-table th.spotify { color: var(--spotify-color); }
+.comparison-table td { padding: 12px; font-size: 14px; border-bottom: 1px solid var(--border); }
+.comparison-table tr:last-child td { border-bottom: none; }
+.comparison-table .row-label { font-weight: 700; color: var(--primary); font-size: 13px; }
+.comp-val { font-size: 18px; font-weight: 800; }
+.comp-sub { font-size: 12px; color: var(--text-light); }
+.best-marker { font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #27ae60; margin-left: 4px; }
+
+/* ── REFLECTION ── */
+.reflect-q { margin-bottom: 22px; }
+.reflect-q:last-child { margin-bottom: 0; }
+.reflect-header { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.reflect-num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+.reflect-prompt strong { display: block; font-size: 14px; color: var(--primary); margin-bottom: 3px; }
+.reflect-prompt p { font-size: 13px; color: var(--text-light); line-height: 1.55; }
+.reflect-area { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; color: var(--text); resize: vertical; min-height: 80px; transition: border-color 0.15s; line-height: 1.5; }
+.reflect-area:focus { outline: none; border-color: var(--highlight); }
+.reflect-area::placeholder { color: #bbb; }
+.reflect-counter { text-align: right; font-size: 11px; color: var(--text-light); margin-top: 3px; }
+
+/* ── BRIEF CARD ── */
+.brief-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
+.brief-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+.brief-tab { padding: 10px 16px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; transition: color 0.15s; }
+.brief-tab.active { color: var(--primary); border-bottom-color: var(--highlight); }
+.brief-tab:hover { color: var(--primary); }
+.brief-panel { display: none; padding: 18px 20px; }
+.brief-panel.active { display: block; }
+.brief-panel p { font-size: 14px; color: var(--text); line-height: 1.7; }
+.brief-panel p + p { margin-top: 10px; }
+.brief-keyfact { margin-top: 14px; background: var(--bg); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: var(--text); line-height: 1.55; border-left: 3px solid var(--highlight); }
+.brief-keyfact strong { color: var(--highlight); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
+.brief-stat-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.brief-stat { flex: 1; min-width: 120px; background: var(--bg); border-radius: 8px; padding: 12px 14px; text-align: center; }
+.brief-stat .sv { font-size: 20px; font-weight: 800; color: var(--primary); }
+.brief-stat .sl { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.tension-pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(233,69,96,0.08); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--highlight); font-weight: 700; margin-bottom: 10px; }
+
+/* ── WELCOME SCENARIO CARDS ── */
+.scenario-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; max-width: 820px; margin: 0 auto 36px; text-align: left; }
+.sc-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; border-top: 4px solid var(--border); }
+.sc-card.lego    { border-top-color: var(--lego-color); }
+.sc-card.siemens { border-top-color: var(--siemens-color); }
+.sc-card.spotify { border-top-color: var(--spotify-color); }
+.sc-card-letter { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--text-light); margin-bottom: 4px; }
+.sc-card-company { font-size: 18px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+.sc-card-tag { font-size: 12px; font-weight: 600; color: var(--text-light); margin-bottom: 10px; }
+.sc-card-pitch { font-size: 13px; color: var(--text); line-height: 1.55; margin-bottom: 12px; }
+.sc-card-stat { display: flex; gap: 8px; flex-wrap: wrap; }
+.sc-stat-chip { background: var(--bg); border-radius: 20px; padding: 3px 9px; font-size: 11px; font-weight: 700; color: var(--text-light); }
+
+/* ── ACTIONS ── */
+.actions-row { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 6px; }
+.btn-print { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 11px 22px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+@media print {
+  #progress-bar, .actions-row, #screen-welcome, #screen-designer { display: none !important; }
+  .screen { max-width: 100%; padding: 0; }
+  .screen.active { display: block !important; }
+  .panel { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- PROGRESS BAR -->
+<div id="progress-bar">
+  <div class="prog-step active" id="prog-1"><div class="prog-num">1</div><span class="prog-label">Welcome</span></div>
+  <div class="prog-connector"></div>
+  <div class="prog-step" id="prog-2"><div class="prog-num">2</div><span class="prog-label">LEGO</span></div>
+  <div class="prog-connector"></div>
+  <div class="prog-step" id="prog-3"><div class="prog-num">3</div><span class="prog-label">Siemens</span></div>
+  <div class="prog-connector"></div>
+  <div class="prog-step" id="prog-4"><div class="prog-num">4</div><span class="prog-label">Spotify</span></div>
+  <div class="prog-connector"></div>
+  <div class="prog-step" id="prog-5"><div class="prog-num">5</div><span class="prog-label">Reflect</span></div>
+</div>
+
+<!-- SCREEN 1: WELCOME -->
+<div class="screen active" id="screen-welcome">
+  <div style="text-align:center; padding-top:48px;">
+    <div class="welcome-logo">DBAS Framework</div>
+    <h1 class="welcome-title">Crowdsourcing<br><span>Design Simulator</span></h1>
+    <p class="welcome-sub">
+      <strong>DBAS</strong> stands for <strong>Define · Broadcast · Attract · Select</strong> — the four
+      stages every crowdsourcing campaign must design. Together they determine who shows up, how many,
+      and what kind of ideas they submit.
+    </p>
+    <p class="welcome-sub" style="margin-top:-18px;">
+      For each of three real companies you will make 12 decisions (3 per stage), run the simulation, and
+      see how your choices shape submission volume, idea quality, novelty, and contributor retention.
+      Then compare across contexts and reflect.
+    </p>
+    <div class="scenario-cards">
+      <div class="sc-card lego">
+        <div class="sc-card-letter">Campaign A</div>
+        <div class="sc-card-company">LEGO</div>
+        <div class="sc-card-tag">Consumer goods · Fan community · Creative platform</div>
+        <div class="sc-card-pitch">LEGO Ideas lets adult fans submit original set concepts. If a project earns 10,000 supporter votes, LEGO's Review Board considers it for production — and the creator gets royalties and public credit.</div>
+        <div class="sc-card-stat">
+          <span class="sc-stat-chip">1.5M AFOL members</span>
+          <span class="sc-stat-chip">Fan-designed sets</span>
+          <span class="sc-stat-chip">Identity-sensitive</span>
+        </div>
+      </div>
+      <div class="sc-card siemens">
+        <div class="sc-card-letter">Campaign B</div>
+        <div class="sc-card-company">Siemens</div>
+        <div class="sc-card-tag">Industrial tech · R&amp;D · Energy efficiency</div>
+        <div class="sc-card-pitch">Siemens wants to open its internal Innovation Contest to external engineers and researchers — targeting factory-floor energy efficiency solutions with real commercial and carbon impact.</div>
+        <div class="sc-card-stat">
+          <span class="sc-stat-chip">50K expert engineers</span>
+          <span class="sc-stat-chip">High IP sensitivity</span>
+          <span class="sc-stat-chip">Technical domain</span>
+        </div>
+      </div>
+      <div class="sc-card spotify">
+        <div class="sc-card-letter">Campaign C</div>
+        <div class="sc-card-company">Spotify</div>
+        <div class="sc-card-tag">Consumer tech · Algorithm · Mass scale</div>
+        <div class="sc-card-pitch">Spotify's recommendation algorithm still fails for niche listeners, non-Western music markets, and context-specific moods. Internal engineers have hit diminishing returns. They want fresh signal from users.</div>
+        <div class="sc-card-stat">
+          <span class="sc-stat-chip">600M active users</span>
+          <span class="sc-stat-chip">Extreme noise risk</span>
+          <span class="sc-stat-chip">Scale advantage</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:28px;">
+      <div class="ws-card c4" style="max-width:400px; margin:0 auto; text-align:left;">
+        <div class="ws-num">After all three campaigns</div>
+        <div class="ws-title">Compare &amp; Reflect</div>
+        <div class="ws-desc">Side-by-side results table, a "decisions that differed" breakdown, and four guided reflection questions you write directly in the simulator.</div>
+      </div>
+    </div>
+    <div id="reg-form" style="max-width:400px; margin:0 auto 24px; text-align:left; background:var(--card); border-radius:var(--radius); padding:20px 24px; box-shadow:var(--shadow);">
+      <div style="font-size:14px; font-weight:700; color:var(--primary); margin-bottom:12px;">Before you begin</div>
+      <label style="font-size:13px; color:var(--text-light); display:block; margin-bottom:4px;">Your name *</label>
+      <input type="text" id="reg-name" placeholder="First and Last name" style="width:100%; padding:9px 11px; font-size:14px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; color:var(--text); margin-bottom:12px;">
+      <label style="font-size:13px; color:var(--text-light); display:block; margin-bottom:4px;">Your email *</label>
+      <input type="email" id="reg-email" placeholder="your.email@esmt.org" style="width:100%; padding:9px 11px; font-size:14px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; color:var(--text); margin-bottom:4px;">
+      <div id="reg-error" style="font-size:12px; color:#e74c3c; display:none; margin-top:4px;"></div>
+    </div>
+    <button class="btn-primary" onclick="startSimulator()">Start with LEGO →</button>
+  </div>
+</div>
+
+<!-- SCREEN 2: DESIGNER (reused for all 3 scenarios) -->
+<div class="screen" id="screen-designer">
+  <div id="designer-scenario-header"></div>
+  <p class="screen-subtitle">
+    Work through all 12 decisions for this scenario. Select an option and write a one-sentence justification for each.
+    Your choices should reflect the specific context, crowd, and goals of this company.
+  </p>
+  <div class="decision-counter">Decisions completed: <span id="decision-count">0</span> / 12</div>
+  <div id="decisions-container"></div>
+  <div class="error-banner" id="error-banner">Please complete all decisions and justifications before running the simulation.</div>
+  <div class="run-row">
+    <span class="run-hint" id="run-hint">Complete all 12 decisions to unlock</span>
+    <button class="btn-secondary" onclick="goBackFromDesigner()">← Back</button>
+    <button class="btn-primary" id="run-btn" disabled onclick="handleRunClick()">Run Simulation →</button>
+  </div>
+</div>
+
+<!-- SCREEN 3: RESULTS (reused for all 3 scenarios) -->
+<div class="screen" id="screen-results">
+  <div id="results-content"></div>
+  <div class="next-row" id="next-row"></div>
+</div>
+
+<!-- SCREEN 4: COMPARISON + REFLECTION -->
+<div class="screen" id="screen-comparison">
+  <div id="comparison-content"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// API CONFIG — set this to your Railway server URL after deploying
+// ════════════════════════════════════════════════════════════════
+const API_URL = 'https://web-production-aaae1.up.railway.app';
+
+async function apiPost(path, body) {
+  if (!API_URL) return null; // silently skip if no backend configured
+  try {
+    const res = await fetch(API_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('API save failed:', err.message);
+    return null;
+  }
+}
+
+function showSaveStatus(msg, isError) {
+  let el = document.getElementById('save-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'save-status';
+    el.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;transition:opacity 0.3s;';
+    document.body.appendChild(el);
+  }
+  el.style.background = isError ? '#e74c3c' : '#27ae60';
+  el.style.color = '#fff';
+  el.textContent = msg;
+  el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+
+// ════════════════════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════════════════════
+
+const SCENARIO_ORDER = ['LEGO', 'SIEMENS', 'SPOTIFY'];
+const PROG_MAP = { welcome:1, LEGO:2, SIEMENS:3, SPOTIFY:4, comparison:5 };
+
+const SCENARIOS = {
+  LEGO: {
+    name: 'LEGO', letter: 'A', color: 'var(--lego-color)',
+    description: 'Crowdsource new product ideas from Adult Fans of LEGO (AFOL) via the LEGO Ideas platform',
+    crowd: '1.5M registered AFOL members',
+    baseReach: 1500000, exposureRate: 0.35, baseSubRate: 0.020,
+    qualityBase: 15, noveltyBase: 10, retentionBase: 55,
+    stats: [
+      { v: '1.5M', l: 'Registered AFOL members' },
+      { v: '10K',  l: 'Votes needed for Review Board' },
+      { v: '1%',   l: 'Creator royalty on sales' },
+    ],
+    brief: `LEGO Ideas is LEGO's official crowdsourcing platform where fans submit original set concepts. Projects that reach 10,000 community supporter votes enter a formal Review Board review process, and successful designs go into commercial production. Past hits include the NASA Women of NASA set (2017), the Friends Central Perk café (2019), and the Seinfeld apartment (2021) — each designed by a fan who spent years building a presence on the platform before submitting.\n\nThe platform has become a cultural institution in the AFOL community. Being "the person whose set got made" carries real social capital — it is a career-defining moment for many builders. LEGO has been careful to position Ideas as a genuine creative partnership, not a suggestion box.`,
+    challenge: `LEGO wants to expand the Ideas pipeline — more submissions, more ambitious concepts, more contributors who return season after season. But the AFOL community is finite, famously opinionated, and deeply sensitive to corporate overreach. Any campaign that feels extractive, dismissive, or amateur will generate backlash on Eurobricks and Rebrickable within hours.\n\nYour challenge: design a campaign that drives volume and raises the ceiling on creative novelty — without burning out the core community or signalling that LEGO has turned Ideas into an unpaid product-testing programme.`,
+    crowdProfile: `AFOLs are disproportionately skilled: architects, industrial designers, educators, software engineers, and illustrators who treat LEGO as a serious creative medium. They are deeply embedded in an ecosystem of fan sites (Rebrickable, BrickSet, Eurobricks), YouTube channels, and annual conventions (BrickFair, BrickCon). They follow LEGO's IP decisions closely and share opinions loudly.\n\nCommunity norms are strong. Recognition — public credit, forum reputation, the chance to see your design in a store — matters far more than cash to most contributors. Submitting a "bad" idea is reputationally costly in this community, which is part of why average quality on Ideas is high.`,
+    tension: `Community health vs. volume. Open calls attract more submissions but risk diluting the tight creative norms that make AFOL submissions uniquely valuable. Passion-driven contributors resist feeling like unpaid product-testers. The design challenge is to scale without extracting.`,
+    keyFact: `The 2021 Sonic the Hedgehog set sold out within 48 hours of launch. Its designer, Viv Sherwood, had spent three years building a reputation on the LEGO Ideas platform before her submission was greenlit — a pattern that repeats across top-performing Ideas sets.`,
+    context: {
+      ip: 'AFOL creators invest months or years in their submissions. Discovering LEGO shipped a concept that looks like their idea — with no public credit and no royalties — would be seen as a betrayal of the platform\'s founding promise. IP clarity is not just legal protection; it is community trust.',
+      crowd: 'The AFOL community is tight-knit and vocal. A poorly designed campaign does not just produce bad results — it produces critical Reddit threads, Eurobricks forum posts, and YouTube reviews that damage the Ideas brand.',
+    }
+  },
+
+  SIEMENS: {
+    name: 'Siemens', letter: 'B', color: 'var(--siemens-color)',
+    description: 'Crowdsource industrial energy efficiency solutions from engineers and R&D researchers globally',
+    crowd: '50K professional engineers and researchers',
+    baseReach: 50000, exposureRate: 0.65, baseSubRate: 0.070,
+    qualityBase: 15, noveltyBase: 10, retentionBase: 55,
+    stats: [
+      { v: '320K', l: 'Siemens global employees' },
+      { v: '50K',  l: 'Target external experts' },
+      { v: '190',  l: 'Countries of operation' },
+    ],
+    brief: `Siemens operates across 190 countries with approximately 320,000 employees, with deep roots in industrial automation, energy technology, and digitalization. Its R&D division runs an internal Innovation Contest — but leadership now wants to open it to external engineers, university researchers, and specialist consultants to tackle a specific problem: reducing energy waste in industrial manufacturing processes.\n\nIndustrial energy inefficiency costs global manufacturers an estimated $150 billion annually. Siemens has pledged to help its industrial customers cut energy consumption by 30% by 2030 — an ambitious target that internal engineers alone cannot reach. External ideas are not a supplement; they are a strategic necessity.`,
+    challenge: `Industrial energy efficiency is a technically brutal domain. Solutions need to be physically implementable on factory floors — not PowerPoint concepts or theoretical models. Submissions must account for safety standards, existing equipment constraints, and regulatory compliance.\n\nYour challenge: design a campaign that attracts genuinely credentialed contributors, generates technically rigorous submissions, and does so without triggering the IP defensiveness that professional engineers feel acutely — or wasting the time of senior Siemens engineers who will evaluate the results.`,
+    crowdProfile: `Target contributors hold advanced engineering degrees or carry 10–20 years of field experience in industrial automation, thermodynamics, or process engineering. Many are independent consultants who carefully guard their proprietary methodologies, or academics whose career is built on being cited — not contracted. They participate in IEEE conferences, publish in peer-reviewed journals, and maintain professional reputations that a poorly-designed or legally ambiguous campaign can genuinely damage.\n\nThey submit only when they trust the process. A vague brief, an ambiguous IP clause, or an evaluation process that looks like a lottery will cause them to walk away — and tell their networks.`,
+    tension: `Quality vs. novelty. Expert communities self-censor around what is "technically feasible" — their solutions are rigorous but often incremental. Genuine breakthroughs in engineering frequently come from outsiders who do not know what is "impossible." The design challenge is to attract deep expertise without filtering out the unconventional thinkers who sometimes crack problems that insiders cannot.`,
+    keyFact: `Siemens' own internal estimates suggest that a 1% improvement in energy efficiency across their installed global industrial base would reduce CO₂ emissions by the equivalent of removing approximately 2 million cars from the road annually — and save customers roughly $4 billion in energy costs.`,
+    context: {
+      ip: 'Professional engineers treat IP as career capital. An ambiguous ownership clause does not just create legal risk — it signals that the company does not respect contributors\' professional value. Engineers in this domain will consult their employer\'s legal team before submitting anything, and many will simply not participate if the terms feel one-sided.',
+      crowd: 'This is a professional context, not a hobby one. Contributors evaluate this campaign the same way they evaluate a consulting engagement: Is the brief credible? Is the evaluation process rigorous? Will my name be associated with quality work?',
+    }
+  },
+
+  SPOTIFY: {
+    name: 'Spotify', letter: 'C', color: 'var(--spotify-color)',
+    description: 'Crowdsource feature ideas from 600M users to improve the recommendation algorithm',
+    crowd: '600M active users',
+    baseReach: 600000000, exposureRate: 0.02, baseSubRate: 0.007,
+    qualityBase: 15, noveltyBase: 10, retentionBase: 55,
+    stats: [
+      { v: '600M', l: 'Monthly active users' },
+      { v: '100M', l: 'Songs in catalogue' },
+      { v: '4B+',  l: 'Playlists on platform' },
+    ],
+    brief: `Spotify's recommendation engine — Discover Weekly, Daily Mix, Radio — is the product that retains subscribers. The algorithm team has publicly acknowledged that it still fails systematically for users with niche tastes, non-Western listening patterns, and context-specific moods (studying at 2am is different from a Saturday morning run). Internal engineers have been iterating on the same training data and feature sets for years and are hitting diminishing returns.\n\nSpotify wants fresh signal — not usage data it already has, but qualitative insight from users about how the algorithm fails them. The hypothesis: the people most affected by the algorithm's blind spots are also the people who can best articulate what "better" would look like.`,
+    challenge: `The paradox of scale: 600M users is Spotify's greatest asset and its biggest liability. That user base includes the outlier listeners — the person who only listens to 1970s Zambian funk, the accessibility-needs user whose algorithm keeps recommending songs with sudden loud transitions, the K-pop listener in a country the algorithm was not trained on — whose edge cases are precisely where improvement matters most. But at 600M users, the noise-to-signal ratio is brutal. For every insightful submission, there will be hundreds of "more Taylor Swift" requests.\n\nYour challenge: design a campaign that surfaces the right signal from the right people — at a scale that makes the investment worthwhile.`,
+    crowdProfile: `A general consumer base — mostly non-technical. It spans power users who listen 4+ hours daily and care deeply about discovery; casual listeners who barely notice the algorithm; accessibility-needs users for whom audio personalisation is a functional necessity; and listeners in underrepresented music markets (Afrobeats, K-pop, Arabic pop, Nordic folk) where the algorithm performs worst and improvement potential is highest.\n\nThese contributors are not product designers. They cannot articulate technical requirements. But they can describe failure in vivid, specific terms — and those descriptions are more valuable to the algorithm team than a thousand generic feature requests.`,
+    tension: `Volume vs. quality vs. novelty — all three simultaneously. Scale generates the outlier ideas that matter, but it also generates the noise that buries them. Every decision that improves average quality (narrow scope, rubrics, crowd voting) also suppresses the genuinely novel edge-case insights. Every decision that opens space for novelty (broad scope, judgment, no voting) risks drowning the team in low-effort feedback. This is the hardest version of the crowdsourcing design problem.`,
+    keyFact: `Discover Weekly was partially inspired by informal user feedback on Reddit, where power users described in detail how they discovered new music. The feature now generates more streams than any other Spotify product, and is the primary reason 40M+ weekly active users cite for maintaining their premium subscription.`,
+    context: {
+      ip: 'Spotify defining ex ante that it retains full IP is legally standard — but psychologically costly at scale. When a contributor later hears "Spotify launched a feature exactly like my idea" and receives no acknowledgement, the sense of extraction spreads fast on social media. At 600M users, even a small percentage feeling this way represents significant brand risk.',
+      crowd: 'Scale is the competitive advantage: 600M users includes niche listeners, accessibility-needs users, and underrepresented market listeners whose outlier perspectives are precisely where algorithm improvement is most valuable — and hardest to find through internal analysis alone.',
+    }
+  }
+};
+
+const DECISIONS = [
+  { id:'taskType',     stage:'define',    label:'Task type',            hint:'What kind of knowledge are you asking contributors to provide?', optA:'Problem-related knowledge', optB:'Solution-related knowledge' },
+  { id:'specificity',  stage:'define',    label:'Specificity',          hint:'How tightly scoped is the brief sent to the crowd?',             optA:'Narrow', optB:'Broad' },
+  { id:'decomposition',stage:'define',    label:'Decomposition',         hint:'Is the task left whole or split into sub-problems?',              optA:'Aggregated (single task)', optB:'Decomposed into sub-tasks' },
+  { id:'channel',      stage:'broadcast', label:'Channel',              hint:'Where does the campaign live?',                                   optA:'Intermediary platform', optB:'Own platform' },
+  { id:'invitation',   stage:'broadcast', label:'Invitation',           hint:'Who is allowed to participate?',                                  optA:'Open call', optB:'Invitation-only' },
+  { id:'crowdSize',    stage:'broadcast', label:'Crowd size',           hint:'Are you maximising reach or targeting a focused group?',           optA:'Small', optB:'Large' },
+  { id:'incentiveType',stage:'attract',   label:'Incentive type',       hint:'What motivates contributors to submit?',                           optA:'Pecuniary (cash / prizes)', optB:'Non-pecuniary (recognition / access)' },
+  { id:'rewardAlloc',  stage:'attract',   label:'Reward allocation',    hint:'How concentrated are the rewards?',                               optA:'Steep (few winners)', optB:'Flat (many winners / broad recognition)' },
+  { id:'ownership',    stage:'attract',   label:'IP Ownership',         hint:'How is intellectual property handled upfront?',                   optA:'Define ex ante (company retains IP)', optB:'Leave ambiguous' },
+  { id:'evalCriteria', stage:'select',    label:'Evaluation criteria',  hint:'On what basis are submissions judged?',                           optA:'Pre-defined metrics', optB:'Judgment call (expert panel)' },
+  { id:'crowdFilter',  stage:'select',    label:'Crowd filtering',      hint:'Is the community involved in the initial screen?',                optA:'Use crowd voting', optB:'No crowd voting' },
+  { id:'process',      stage:'select',    label:'Process',              hint:'Is this a single-round or multi-round selection?',                optA:'One-off (single round)', optB:'Stage-gate (multiple rounds)' }
+];
+
+const STAGES = {
+  define:    { label:'DEFINE',    color:'define',    desc:'Scope the problem — what knowledge are you asking for and how tightly defined is the task?' },
+  broadcast: { label:'BROADCAST', color:'broadcast', desc:'Reach the crowd — which channel, who is invited, and at what scale?' },
+  attract:   { label:'ATTRACT',   color:'attract',   desc:'Motivate participation — what incentives, reward structure, and IP terms?' },
+  select:    { label:'SELECT',    color:'select',    desc:'Evaluate and filter — how are submissions judged and by whom?' }
+};
+
+// Scenario-specific modifiers [quality_delta, novelty_delta, retention_delta]
+// Correct choices differ by context — that is the pedagogical point.
+const MODIFIERS = {
+  // ── LEGO: fan community, identity-driven, recognition culture, crowd-voting sacred ──
+  LEGO: {
+    taskType:     { A:[-2,+5, 0], B:[+3,-2, 0] },
+    specificity:  { A:[+5,-7, 0], B:[-3,+6, 0] },
+    decomposition:{ A:[+3,+2,+3], B:[-2,-3,-2] },
+    channel:      { A:[-4, 0,-6], B:[+4, 0,+5] },
+    invitation:   { A:[+2,+2,+6], B:[+4,-4,-9] },
+    crowdSize:    { A:[+4,-3,-4], B:[-5,+5,+5] },
+    incentiveType:{ A:[-4,-3,-8], B:[+4,+4,+8] },
+    rewardAlloc:  { A:[+3, 0,-7], B:[-3, 0,+6] },
+    ownership:    { A:[ 0, 0,-10],B:[ 0,+3,+3] },
+    evalCriteria: { A:[+4,-6, 0], B:[-2,+5, 0] },
+    crowdFilter:  { A:[+4, 0,+8], B:[-3, 0,-7] },
+    process:      { A:[-3, 0,+2], B:[+4, 0,-1] },
+  },
+  // ── SIEMENS: expert engineers, IP-sensitive, professional context ──
+  SIEMENS: {
+    taskType:     { A:[-2,+5, 0], B:[+5,-3, 0] },
+    specificity:  { A:[+7,-4,+2], B:[-5,+4,-3] },
+    decomposition:{ A:[-3, 0, 0], B:[+7,+3,+3] },
+    channel:      { A:[+6,+2,+2], B:[-5,-1,-3] },
+    invitation:   { A:[-8,+4,-5], B:[+8,-2,+4] },
+    crowdSize:    { A:[+6,-3,+5], B:[-7,+3,-6] },
+    incentiveType:{ A:[+6, 0,+6], B:[-7,+2,-8] },
+    rewardAlloc:  { A:[+5, 0,+4], B:[-4, 0,-3] },
+    ownership:    { A:[+4, 0,+7], B:[ 0,+2,-10]},
+    evalCriteria: { A:[+7,-3,+3], B:[-3,+4,-3] },
+    crowdFilter:  { A:[-7, 0,-5], B:[+6, 0,+4] },
+    process:      { A:[-3, 0,-2], B:[+6, 0,+5] },
+  },
+  // ── SPOTIFY: mass consumer, scale is asset, noise is the problem ──
+  // Calibrated so worked-example choices → Q:13% N:10% R:52%
+  SPOTIFY: {
+    taskType:     { A:[-2,+4, 0], B:[+2, 0, 0] },
+    specificity:  { A:[+8,-6, 0], B:[-5,+5, 0] },
+    decomposition:{ A:[-4, 0, 0], B:[+6, 0, 0] },
+    channel:      { A:[+5, 0,-2], B:[-7, 0,+4] },
+    invitation:   { A:[-10,0, 0], B:[+10,0, 0] },
+    crowdSize:    { A:[+5,-5,+6], B:[-8,+7,-9] },
+    incentiveType:{ A:[+4,-3,-3], B:[-5,+4,+9] },
+    rewardAlloc:  { A:[+5, 0,-10],B:[-4, 0,+7] },
+    ownership:    { A:[ 0, 0,-14],B:[ 0,+4,+3] },
+    evalCriteria: { A:[+5,-5, 0], B:[-3,+6, 0] },
+    crowdFilter:  { A:[+4, 0, 0], B:[-2, 0, 0] },
+    process:      { A:[-5, 0, 0], B:[+7, 0, 0] },
+  },
+};
+
+const CHANNEL_FACTOR = { A:0.25, B:1.0 };
+const INVITE_FACTOR  = { A:1.0,  B:0.3 };
+const CROWD_FACTOR   = { A:0.1,  B:1.0 };
+
+const NO_EFF = '— No significant direct effect on this outcome';
+const MOD_REASONS = {
+  LEGO: {
+    taskType:     { quality:['Open problem-framing makes self-screening harder — "good" is undefined in a creative context','Solution framing gives contributors a clearer target; relevance improves'], novelty:['Open problem framing invites lateral, unexpected creative directions',NO_EFF], retention:[NO_EFF,NO_EFF] },
+    specificity:  { quality:['A focused brief raises relevance; off-theme entries drop sharply','A broad brief invites more unfocused and off-theme submissions from the periphery of the community'], novelty:['Tight scope constrains the creative solution space; outlier concepts are crowded out','Wider framing gives the AFOL community room to surprise — their best work often comes from unexpected angles'], retention:[NO_EFF,NO_EFF] },
+    decomposition:{ quality:['AFOLs submit holistic set designs — a single integrated task matches how they think and create','Breaking a creative brief into sub-tasks disrupts the holistic design process AFOLs follow'], novelty:['Holistic briefs invite integrated creative concepts — a coherent idea with a unique theme','Sub-task decomposition fragments the creative vision and suppresses original concept development'], retention:['AFOLs invest months in complete set designs — a format that respects that investment builds loyalty','Decomposed tasks feel like piecework — it undermines the craft identity that drives repeat contribution'] },
+    channel:      { quality:['An intermediary platform lacks the community context of LEGO Ideas — submissions drift off-brief','LEGO Ideas is where the community lives — contributors self-select and submissions are deeply on-brief'], novelty:[NO_EFF,NO_EFF], retention:['Hosting on a third-party platform severs the brand relationship — contributors disengage after the campaign','LEGO Ideas is the community\'s home — participating here deepens identity investment and drives return'] },
+    invitation:   { quality:['The AFOL community is self-selective — open submissions naturally attract builders who have invested serious time in their craft','Selecting contributors in a community that values meritocracy creates a quality ceiling, not a floor — the best builders may feel passed over'], novelty:['Open participation surfaces the full range of creative talent in the community','Invitation-only restricts the creative gene pool — you miss the unexpected contributor with a breakthrough idea'], retention:['Open participation is the founding promise of LEGO Ideas — the community expects to be invited, not curated','Being uninvited from a platform built on community participation feels like a public rejection — a serious retention killer'] },
+    crowdSize:    { quality:['A smaller, curated group of top builders raises average submission quality','Opening to the full AFOL base brings a wider distribution — more outliers, but also more noise'], novelty:['A small group of top builders tends to converge on well-established AFOL aesthetics','The full community includes unexpected builders from diverse backgrounds — novelty comes from the periphery'], retention:['A smaller, exclusive group creates a tight community with high visibility per contributor','The wider AFOL community participates when they feel included — scale increases belonging'] },
+    incentiveType:{ quality:['Financial incentives attract opportunistic submissions — entries from people chasing prizes rather than from genuine creative investment','Recognition-driven contributors care deeply about what they produce — public credit is career capital in this community'], novelty:['Prize-hunters play it safe; cash incentives push toward safe, commercial concepts rather than bold creative risks','Passion-driven contributors take creative risks that financially motivated ones avoid'], retention:['Cash prizes feel transactional — the AFOL community doesn\'t participate for money, and treating it that way destroys belonging','Royalties, public credit, and community status are exactly what AFOLs contribute for — the strongest possible retention driver'] },
+    rewardAlloc:  { quality:['High stakes for the few drive the most serious contributors to invest maximum effort','Diffuse recognition reduces the signal value — if everyone wins something, quality is less differentiated'], novelty:[NO_EFF,NO_EFF], retention:['Most contributors walk away with nothing — in a community built on recognition, invisibility is the worst outcome','Broad community recognition lets most contributors feel seen and valued — a key driver of return participation on LEGO Ideas'] },
+    ownership:    { quality:[NO_EFF,NO_EFF], novelty:[NO_EFF,'Preserving some ambiguity about shared upside keeps creative ideas flowing — contributors hold back less'], retention:['An IP grab without royalties breaks the founding promise of LEGO Ideas — the community platform\'s legitimacy rests on shared upside','Ambiguity is suboptimal but less damaging — contributors retain some hope of recognition or shared credit'] },
+    evalCriteria: { quality:['A transparent rubric helps contributors self-screen — clear standards raise average relevance','Vague criteria make quality assessment inconsistent and unpredictable'], novelty:['A rubric rewards legible, commercial ideas — truly novel concepts that don\'t fit standard categories score poorly','Expert judgment can recognise genuine creative novelty that a rigid rubric would eliminate'] , retention:[NO_EFF,NO_EFF] },
+    crowdFilter:  { quality:['Community voting removes obviously off-brief entries — 10K supporters is a meaningful quality signal','Without the community vote gate, weak submissions proceed to the Review Board unchanged'], novelty:[NO_EFF,NO_EFF], retention:['The 10,000-vote mechanic IS LEGO Ideas — it creates sustained community investment and is the primary engagement loop','Removing the community vote removes the primary reason contributors stay engaged between submissions'] },
+    process:      { quality:['Single-round evaluation — all submissions assessed equally regardless of early signals','Iterative screening compounds quality upward: each round surfaces stronger concepts'], novelty:[NO_EFF,NO_EFF], retention:['Single round means most contributors receive no signal until the final decision — disengaging','Multiple rounds create ongoing touchpoints — contributors stay connected to the process and the brand'] },
+  },
+  SIEMENS: {
+    taskType:     { quality:['Open problem framing creates ambiguity — professional engineers are uncertain what counts as a valid contribution','Solution framing lets expert contributors assess fit against their specific domain expertise before investing effort'], novelty:['An open problem invites unconventional approaches — outsider engineers may reframe the problem in unexpected ways',NO_EFF], retention:[NO_EFF,NO_EFF] },
+    specificity:  { quality:['A precise, narrow brief is critical for expert efficiency — it prevents wasted effort on the wrong problem','A broad brief wastes professional engineers\' time — ambiguity is costly when contributors hold senior positions'], novelty:['A narrow technical brief constrains the solution space; experts tend to converge on incremental improvements','Broader framing creates space for unconventional approaches from adjacent engineering domains'], retention:['A focused brief signals respect for contributors\' expertise — professionals engage more when the scope is clear','Broad briefs frustrate professionals who want to know whether their specific skills are relevant before committing'] },
+    decomposition:{ quality:['A single complex task produces holistic but structurally inconsistent submissions — harder to evaluate fairly','Decomposed sub-tasks let experts contribute to the specific domain they know best — submissions are deeper and more comparable'], novelty:[NO_EFF,'Experts contributing to defined sub-tasks can apply specialised knowledge creatively within a bounded scope'], retention:[NO_EFF,'Decomposed tasks respect the contributor\'s time — they can engage with a specific problem without owning the full complexity'] },
+    channel:      { quality:['Specialist platforms like InnoCentive have pre-qualified expert pools — average quality is higher before you open','Siemens\' own channels reach primarily internal stakeholders — the external expert pool is thin'], novelty:['Specialist intermediary platforms attract expert contributors from adjacent engineering domains — cross-disciplinary novelty','Siemens own channels reach a narrower professional network — less diversity of engineering perspectives'], retention:['Established challenge platforms have repeat-contributor communities — engineers know the process and trust the evaluation','Siemens own channels lack the institutional credibility and process maturity of specialist challenge platforms'] },
+    invitation:   { quality:['An open call to a technical domain floods with uncredentialed submissions — evaluators\' time is wasted and signal drowns in noise','Targeting verified experts — by credential, publication record, or domain affiliation — ensures every submission meets a minimum technical standard'], novelty:['Open calls occasionally surface unexpected outsider perspectives — the engineer from an adjacent field who reframes the problem',NO_EFF], retention:['Professional engineers who see low-quality peers participate will disengage — it signals the campaign doesn\'t value expertise','Being personally invited signals institutional respect for expertise — a strong driver of professional engagement and return participation'] },
+    crowdSize:    { quality:['A small, focused expert group produces higher average technical depth — fewer but stronger submissions','A larger pool dilutes technical expertise — the proportion of genuinely credentialed contributors falls'], novelty:['A small expert group converges on known solutions — diversity of approach requires diversity of background','A larger technical crowd includes contributors from adjacent domains — the source of cross-disciplinary novelty'], retention:['Small expert communities create high visibility per contributor — every participant feels recognised and valued','Anonymous participation in a large pool reduces commitment — professional contributors disengage when they feel interchangeable'] },
+    incentiveType:{ quality:['Meaningful financial reward signals the company values the IP — professionals invest more effort when compensation is commensurate with their expertise','Engineers who feel their expertise is undervalued submit less rigorously — or evaluate whether to participate at all'], novelty:[NO_EFF,'Non-cash incentives (publication credit, conference invitations) attract researchers motivated by impact rather than revenue — occasionally a source of unconventional approaches'], retention:['Fair compensation is a prerequisite for professional return participation — it signals a consulting relationship, not exploitation','Recognition without compensation feels extractive to professionals who guard their IP carefully — the single largest retention killer in expert communities'] },
+    rewardAlloc:  { quality:['A meaningful prize for the top solution drives serious competitors to invest maximum technical effort','Diffuse rewards devalue the prize — professionals who can earn more consulting won\'t prioritise a low-value challenge'], novelty:[NO_EFF,NO_EFF], retention:['A competitive, well-structured prize signals the campaign is serious — professionals respect rigour','Flat distribution signals the evaluation isn\'t discriminating — professionals disengage when they can\'t distinguish strong from weak'] },
+    ownership:    { quality:['Clear IP terms upfront let professionals make an informed decision to participate — those who engage do so fully','Ambiguous IP triggers legal review from employers and professional associations — many qualified contributors simply will not participate'], novelty:[NO_EFF,'Ambiguity preserves a small hope of shared upside — occasionally unlocking bolder ideas from independent consultants willing to take IP risk'], retention:['Professionals who know exactly what they\'re agreeing to make a deliberate commitment — clarity builds trust and return participation','Engineers who later discover unfavourable IP terms feel misled — a reputational and retention disaster in tight professional networks'] },
+    evalCriteria: { quality:['Pre-defined technical metrics let engineers self-screen and optimise — quality rises as submissions align to explicit standards','Judgment-based evaluation seems arbitrary to professionals — uncertainty about criteria reduces submission quality and volume'], novelty:['Rubric rewards technically feasible, roadmap-aligned solutions; genuinely novel approaches score poorly on feasibility criteria','Expert panel judgment can recognise cross-disciplinary breakthroughs that a standard engineering rubric would penalise'], retention:['Transparent criteria signal a rigorous, fair process — professionals trust outcome when they can see how decisions are made','Perceived arbitrariness in evaluation erodes trust — engineers don\'t return to campaigns where outcomes feel like a lottery'] },
+    crowdFilter:  { quality:['Having non-expert peers vote on technical submissions is seen as a validity problem — it undermines confidence in the selection process','Expert-only evaluation is what professional contributors expect — it signals rigour and rewards genuine technical depth'], novelty:[NO_EFF,NO_EFF], retention:['Professional engineers see peer-voted technical evaluation as a popularity contest — they disengage when they sense outcomes are determined by network effects rather than technical merit','Professionals trust that their submissions will be evaluated by qualified peers — removing crowd distortion increases confidence and return participation'] },
+    process:      { quality:['Single-round evaluation means all submissions are assessed equally regardless of quality signals — weak concepts consume expert review time','Stage-gate screening compounds quality upward: technically strong submissions advance while noise is filtered early'], novelty:[NO_EFF,NO_EFF], retention:['Single round offers no feedback loop — professionals who invest significant effort receive no signal until the final decision','Multi-round processes create ongoing dialogue between contributors and evaluators — professionals stay engaged and trust the rigour of the selection'] },
+  },
+  SPOTIFY: {
+    taskType:     { quality:['Problem framing makes it harder for contributors to self-screen — "good" is undefined','Solution framing lets contributors assess fit before submitting'], novelty:['Open problem framing invites lateral, unexpected approaches from 600M different listening contexts',NO_EFF], retention:[NO_EFF,NO_EFF] },
+    specificity:  { quality:['A focused brief raises average relevance; off-topic entries drop sharply','Broad scope invites more unfocused and off-brief submissions — at Spotify scale, noise compounds rapidly'], novelty:['Tight scope constrains the solution space; the outlier edge-case insights that matter most are crowded out','Wider framing gives room for unexpected directions — the niche listener\'s perspective that internal engineers never encounter'], retention:[NO_EFF,NO_EFF] },
+    decomposition:{ quality:['Without structure, submissions lack comparable shape — quality is inconsistent and hard to evaluate at scale','Self-selection to relevant sub-problem reduces noise and raises average depth per submission'], novelty:[NO_EFF,NO_EFF], retention:[NO_EFF,NO_EFF] },
+    channel:      { quality:['Intermediaries pre-screen their communities; average quality is higher before you open','Own platform has no pre-qualification layer — the full noise of 600M users flows through'], novelty:[NO_EFF,NO_EFF], retention:['Intermediary platforms have lower re-engagement rates with the originating brand','Familiar platform UX and direct brand relationship increases re-engagement'] },
+    invitation:   { quality:['Unfiltered open call at 600M scale brings the complete distribution — including a massive long tail of low-effort submissions','Invitation-only restricts to pre-screened individuals; quality floor rises sharply'], novelty:[NO_EFF,NO_EFF], retention:[NO_EFF,NO_EFF] },
+    crowdSize:    { quality:['Smaller pool yields higher average quality — less volume noise dilutes the signal','At 600M scale, low-effort entries grow proportionally faster than high-quality ones'], novelty:['Less diversity in a small crowd limits outlier idea generation — the niche listener is excluded','Scale unlocks rare perspectives — the accessibility-needs user, the Zambian funk listener, the edge cases the algorithm fails'], retention:['Smaller community creates visibility, belonging, and individual impact','Contributors feel like a drop in the ocean — anonymous and easily forgotten at mass scale'] },
+    incentiveType:{ quality:['Financial stakes motivate effort and deter casual half-finished submissions','Non-pecuniary rewards attract passionate listeners who may underinvest in submission rigour'], novelty:['Rational economic actors play it safe; cash incentives push toward expected, easily-evaluated ideas','Passion-driven contributors take creative risks — the power user who describes a failure mode no one else has named'], retention:['Transactional relationship ends when the contest closes','Identity-based recognition — being heard by Spotify — builds the sense of belonging that drives return engagement'] },
+    rewardAlloc:  { quality:['High stakes for the few drive excellence among serious contenders','Diffuse rewards reduce the perceived cost of submitting low-effort ideas at scale'], novelty:[NO_EFF,NO_EFF], retention:['Most contributors win nothing — at 600M scale, invisibility compounds disengagement rapidly','Broad recognition lets most contributors feel heard — critical when the platform has hundreds of millions of users'] },
+    ownership:    { quality:[NO_EFF,NO_EFF], novelty:[NO_EFF,'Ambiguous IP creates hope that contributors may share in upside — ideas flow more freely'], retention:['At 600M users, even a small percentage feeling their idea was taken without credit represents massive brand risk — the largest single retention killer','Ambiguity preserves some hope of shared credit; less immediate sense of extraction'] },
+    evalCriteria: { quality:['Transparent rubric lets contributors self-screen before submitting','Vague "good idea" standard makes quality assessment inconsistent at scale'], novelty:['Rubric rewards legible, roadmap-aligned ideas; the truly novel edge-case insight scores poorly on standard feasibility criteria','Expert judgment can recognise the unconventional listening pattern description that a rubric would filter out'], retention:[NO_EFF,NO_EFF] },
+    crowdFilter:  { quality:['Community voting removes obvious low-effort entries before expert review — helpful noise filter at scale','Without a community gate, low-quality entries proceed to expert review unchanged — evaluation burden grows linearly with volume'], novelty:[NO_EFF,NO_EFF], retention:[NO_EFF,NO_EFF] },
+    process:      { quality:['No filtering — all submissions evaluated equally regardless of quality signals','Iterative screening compounds quality upward: the strongest insights survive each round'], novelty:[NO_EFF,NO_EFF], retention:[NO_EFF,NO_EFF] },
+  },
+};
+
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+
+let state = {
+  studentId: null,
+  studentName: '',
+  studentEmail: '',
+  currentScenario: 'LEGO',
+  currentView: 'welcome',   // welcome | designer | results | comparison
+  runs: {
+    LEGO:    { decisions:{}, justifications:{}, results:null },
+    SIEMENS: { decisions:{}, justifications:{}, results:null },
+    SPOTIFY: { decisions:{}, justifications:{}, results:null },
+  },
+  reflections: { q1:'', q2:'', q3:'', q4:'' }
+};
+
+// ════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════════
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function updateProgress() {
+  const v = state.currentView;
+  const s = state.currentScenario;
+  let active = 1;
+  if (v === 'designer' || v === 'results') active = PROG_MAP[s];
+  else if (v === 'comparison') active = 5;
+  [1,2,3,4,5].forEach(n => {
+    const el = document.getElementById('prog-' + n);
+    el.classList.remove('active','done');
+    if (n === active) el.classList.add('active');
+    else if (n < active) el.classList.add('done');
+  });
+}
+
+async function startSimulator() {
+  // Validate registration
+  const name = (document.getElementById('reg-name').value || '').trim();
+  const email = (document.getElementById('reg-email').value || '').trim();
+  const errEl = document.getElementById('reg-error');
+
+  if (!name || !email) {
+    errEl.textContent = 'Please enter your name and email to begin.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!email.includes('@')) {
+    errEl.textContent = 'Please enter a valid email address.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  state.studentName = name;
+  state.studentEmail = email;
+
+  // Register with backend (non-blocking — simulator works even if API is down)
+  const result = await apiPost('/api/students', { name, email });
+  if (result && result.id) {
+    state.studentId = result.id;
+    showSaveStatus('Registered ✓', false);
+  }
+
+  state.currentScenario = 'LEGO';
+  state.currentView = 'designer';
+  buildDesigner();
+  showScreen('designer');
+  updateProgress();
+}
+
+function goBackFromDesigner() {
+  const idx = SCENARIO_ORDER.indexOf(state.currentScenario);
+  if (idx === 0) {
+    state.currentView = 'welcome';
+    showScreen('welcome');
+    updateProgress();
+  } else {
+    // go to previous scenario's results
+    state.currentScenario = SCENARIO_ORDER[idx - 1];
+    state.currentView = 'results';
+    buildResults();
+    showScreen('results');
+    updateProgress();
+  }
+}
+
+async function handleRunClick() {
+  if (!validateDecisions()) return;
+  document.getElementById('error-banner').style.display = 'none';
+  const sc = state.currentScenario;
+  state.runs[sc].results = calcResults(sc);
+  state.currentView = 'results';
+  buildResults();
+  showScreen('results');
+  updateProgress();
+
+  // Save to backend
+  if (state.studentId) {
+    const r = state.runs[sc].results;
+    const saved = await apiPost('/api/runs', {
+      student_id: state.studentId,
+      scenario: sc,
+      decisions: state.runs[sc].decisions,
+      results: {
+        totalSubs: r.totalSubs,
+        qualityRate: r.quality,
+        noveltyRate: r.novelty,
+        retentionRate: r.retention
+      }
+    });
+    if (saved) showSaveStatus(`${sc} results saved ✓`, false);
+  }
+}
+
+function goToNextScenario() {
+  const idx = SCENARIO_ORDER.indexOf(state.currentScenario);
+  if (idx < SCENARIO_ORDER.length - 1) {
+    state.currentScenario = SCENARIO_ORDER[idx + 1];
+    state.currentView = 'designer';
+    buildDesigner();
+    showScreen('designer');
+    updateProgress();
+  } else {
+    state.currentView = 'comparison';
+    buildComparison();
+    showScreen('comparison');
+    updateProgress();
+  }
+}
+
+function goToResults() {
+  state.currentScenario = 'SPOTIFY'; // comparison "back" always returns to last scenario
+  state.currentView = 'results';
+  buildResults();
+  showScreen('results');
+  updateProgress();
+}
+
+function goToDesignerFromResults() {
+  state.currentView = 'designer';
+  buildDesigner();
+  showScreen('designer');
+  updateProgress();
+}
+
+// ════════════════════════════════════════════════════════════════
+// DESIGNER
+// ════════════════════════════════════════════════════════════════
+
+function buildDesigner() {
+  const sc = state.currentScenario;
+  const scData = SCENARIOS[sc];
+  const run = state.runs[sc];
+  const idx = SCENARIO_ORDER.indexOf(sc) + 1;
+
+  // Brief card with tabs
+  const statsHTML = scData.stats.map(s =>
+    `<div class="brief-stat"><div class="sv">${s.v}</div><div class="sl">${s.l}</div></div>`
+  ).join('');
+
+  const briefParas = scData.brief.split('\n\n').map(p => `<p>${p}</p>`).join('');
+  const challengeParas = scData.challenge.split('\n\n').map(p => `<p>${p}</p>`).join('');
+  const crowdParas = scData.crowdProfile.split('\n\n').map(p => `<p>${p}</p>`).join('');
+
+  document.getElementById('designer-scenario-header').innerHTML = `
+    <div class="scenario-header" style="margin-bottom:0; border-radius:var(--radius) var(--radius) 0 0;">
+      <span class="scenario-badge ${sc}">${scData.letter}</span>
+      <div class="scenario-header-text">
+        <h2>${scData.name}</h2>
+        <p>${scData.description}</p>
+      </div>
+      <div class="scenario-progress">Campaign ${idx} of 3</div>
+    </div>
+    <div class="brief-card" style="border-radius:0 0 var(--radius) var(--radius); margin-top:0;">
+      <div class="brief-tabs">
+        <div class="brief-tab active" onclick="switchTab('${sc}','brief',this)">Situation</div>
+        <div class="brief-tab" onclick="switchTab('${sc}','challenge',this)">Challenge</div>
+        <div class="brief-tab" onclick="switchTab('${sc}','crowd',this)">Who is the crowd?</div>
+        <div class="brief-tab" onclick="switchTab('${sc}','tension',this)">Key tension</div>
+      </div>
+      <div class="brief-panel active" id="tab-${sc}-brief">
+        ${briefParas}
+        <div class="brief-stat-row">${statsHTML}</div>
+        <div class="brief-keyfact"><strong>Real-world signal</strong>${scData.keyFact}</div>
+      </div>
+      <div class="brief-panel" id="tab-${sc}-challenge">
+        ${challengeParas}
+      </div>
+      <div class="brief-panel" id="tab-${sc}-crowd">
+        ${crowdParas}
+      </div>
+      <div class="brief-panel" id="tab-${sc}-tension">
+        <div class="tension-pill">⚡ Core tension to navigate</div>
+        <p>${scData.tension}</p>
+      </div>
+    </div>
+  `;
+
+  // Build decisions form
+  const container = document.getElementById('decisions-container');
+  container.innerHTML = '';
+  const stageOrder = ['define','broadcast','attract','select'];
+  stageOrder.forEach(stageKey => {
+    const stage = STAGES[stageKey];
+    const stageDecs = DECISIONS.filter(d => d.stage === stageKey);
+    const block = document.createElement('div');
+    block.className = 'stage-block';
+    block.id = 'stage-' + stageKey;
+    block.innerHTML = `
+      <div class="stage-header" onclick="toggleStage('${stageKey}')">
+        <span class="stage-tag ${stage.color}">${stage.label}</span>
+        <span class="stage-desc">${stage.desc}</span>
+        <span class="stage-toggle">▾</span>
+      </div>
+      <div class="stage-body"></div>
+    `;
+    const body = block.querySelector('.stage-body');
+    stageDecs.forEach(dec => {
+      const chosenA = run.decisions[dec.id] === 'A';
+      const chosenB = run.decisions[dec.id] === 'B';
+      const justVal = run.justifications[dec.id] || '';
+      const row = document.createElement('div');
+      row.className = 'decision-row';
+      row.innerHTML = `
+        <div class="decision-label">${dec.label}</div>
+        <div class="decision-hint">${dec.hint}</div>
+        <div class="decision-options">
+          <input type="radio" class="radio-option" name="${sc}_${dec.id}" id="${sc}_${dec.id}_A" value="A" ${chosenA?'checked':''} onchange="pickDecision('${dec.id}','A')">
+          <label class="radio-label" for="${sc}_${dec.id}_A"><span class="radio-dot"></span>${dec.optA}</label>
+          <input type="radio" class="radio-option" name="${sc}_${dec.id}" id="${sc}_${dec.id}_B" value="B" ${chosenB?'checked':''} onchange="pickDecision('${dec.id}','B')">
+          <label class="radio-label" for="${sc}_${dec.id}_B"><span class="radio-dot"></span>${dec.optB}</label>
+        </div>
+        <label class="just-label" for="just_${dec.id}">Your one-sentence justification * <span style="font-weight:400;">(more than 20 characters)</span></label>
+        <textarea class="just-field" id="just_${dec.id}" placeholder="Explain why this choice fits this scenario…" oninput="saveJustification('${dec.id}')">${justVal}</textarea>
+        <div class="just-counter ${justVal.length > 0 && justVal.length < 20 ? 'short' : ''}" id="jc_${dec.id}">${justVal.length} chars</div>
+      `;
+      body.appendChild(row);
+    });
+    container.appendChild(block);
+  });
+
+  updateDecisionCounter();
+}
+
+function switchTab(sc, tab, el) {
+  // Hide all panels and deactivate all tabs for this scenario
+  ['brief','challenge','crowd','tension'].forEach(t => {
+    const panel = document.getElementById('tab-' + sc + '-' + t);
+    if (panel) panel.classList.remove('active');
+  });
+  el.parentElement.querySelectorAll('.brief-tab').forEach(t => t.classList.remove('active'));
+  const target = document.getElementById('tab-' + sc + '-' + tab);
+  if (target) target.classList.add('active');
+  el.classList.add('active');
+}
+
+function toggleStage(key) {
+  document.getElementById('stage-' + key).classList.toggle('collapsed');
+}
+
+function pickDecision(id, val) {
+  state.runs[state.currentScenario].decisions[id] = val;
+  updateDecisionCounter();
+}
+
+function saveJustification(id) {
+  const sc = state.currentScenario;
+  const val = (document.getElementById('just_' + id) || {}).value || '';
+  state.runs[sc].justifications[id] = val.trim();
+  const counter = document.getElementById('jc_' + id);
+  if (counter) {
+    counter.textContent = val.length + ' chars';
+    counter.className = 'just-counter' + (val.length > 0 && val.length < 20 ? ' short' : '');
+  }
+  updateDecisionCounter();
+}
+
+function updateDecisionCounter() {
+  const run = state.runs[state.currentScenario];
+  let done = 0;
+  DECISIONS.forEach(d => {
+    if (run.decisions[d.id] && run.justifications[d.id] && run.justifications[d.id].length >= 20) done++;
+  });
+  document.getElementById('decision-count').textContent = done;
+  const ready = done === DECISIONS.length;
+  document.getElementById('run-btn').disabled = !ready;
+  document.getElementById('run-hint').style.display = ready ? 'none' : 'inline';
+}
+
+function validateDecisions() {
+  const run = state.runs[state.currentScenario];
+  let ok = true;
+  DECISIONS.forEach(d => {
+    const jf = document.getElementById('just_' + d.id);
+    if (!run.decisions[d.id] || !run.justifications[d.id] || run.justifications[d.id].length < 20) {
+      ok = false; if (jf) jf.classList.add('error');
+    } else { if (jf) jf.classList.remove('error'); }
+  });
+  document.getElementById('error-banner').style.display = ok ? 'none' : 'block';
+  return ok;
+}
+
+// ════════════════════════════════════════════════════════════════
+// SIMULATION ENGINE
+// ════════════════════════════════════════════════════════════════
+
+function calcResults(scKey) {
+  const sc = SCENARIOS[scKey];
+  const d = state.runs[scKey].decisions;
+  const exposed = sc.baseReach * sc.exposureRate;
+  const volMult = CHANNEL_FACTOR[d.channel] * INVITE_FACTOR[d.invitation] * CROWD_FACTOR[d.crowdSize];
+  const totalSubs = Math.round(exposed * volMult * sc.baseSubRate);
+  let quality = sc.qualityBase, novelty = sc.noveltyBase, retention = sc.retentionBase;
+  const qMods=[], nMods=[], rMods=[];
+  DECISIONS.forEach(dec => {
+    const ch = d[dec.id];
+    const [qd,nd,rd] = MODIFIERS[scKey][dec.id][ch];
+    quality += qd; novelty += nd; retention += rd;
+    const chosen = ch === 'A' ? dec.optA : dec.optB;
+    qMods.push({ id:dec.id, label:dec.label, choice:ch, chosen, delta:qd });
+    nMods.push({ id:dec.id, label:dec.label, choice:ch, chosen, delta:nd });
+    rMods.push({ id:dec.id, label:dec.label, choice:ch, chosen, delta:rd });
+  });
+  quality   = Math.max(1, Math.min(45, quality));
+  novelty   = Math.max(1, Math.min(30, novelty));
+  retention = Math.max(5, Math.min(90, retention));
+  return { sc, exposed, volMult, totalSubs, quality, novelty, retention, qMods, nMods, rMods };
+}
+
+// ════════════════════════════════════════════════════════════════
+// RESULTS RENDERING
+// ════════════════════════════════════════════════════════════════
+
+const fmt = n => n.toLocaleString();
+const pct = n => n.toFixed(0) + '%';
+const sign = n => (n > 0 ? '+' : '') + n;
+
+function buildResults() {
+  const sc = state.currentScenario;
+  const run = state.runs[sc];
+  const r = run.results;
+  const idx = SCENARIO_ORDER.indexOf(sc);
+  const isLast = idx === SCENARIO_ORDER.length - 1;
+  const nextLabel = isLast ? 'View Comparison &amp; Reflect →' : `Continue to ${SCENARIOS[SCENARIO_ORDER[idx+1]].name} →`;
+
+  const qCount = Math.round(r.totalSubs * r.quality / 100);
+  const nCount = Math.round(r.totalSubs * r.novelty / 100);
+
+  // Channel/invite/crowd labels for breakdown
+  const d = run.decisions;
+  const chanLabel = d.channel === 'A' ? 'Intermediary (×0.25 — only 25% of exposed audience reached through a third-party platform)' : 'Own platform (×1.0 — full exposed audience reachable directly)';
+  const invLabel  = d.invitation === 'A' ? 'Open call (×1.0 — anyone can participate)' : 'Invitation-only (×0.3 — participation restricted to ~30% of exposed audience)';
+  const crwLabel  = d.crowdSize === 'A' ? 'Small (×0.1 — deliberately targeting ~10% of available crowd)' : 'Large (×1.0 — maximising crowd reach)';
+
+  document.getElementById('results-content').innerHTML = `
+    <div class="results-hero">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <span class="scenario-badge ${sc}">${r.sc.letter}</span>
+        <div>
+          <h2>${r.sc.name} — Campaign Results</h2>
+          <p style="margin-top:2px;opacity:0.7;">${r.sc.description}</p>
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:11px 14px;font-size:13px;line-height:1.6;opacity:0.9;">
+        <strong style="font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:0.7;">The challenge you were solving</strong><br>
+        ${r.sc.challenge.split('\n\n')[0]}
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-num">1</div><div class="panel-title">Simulation Output Summary</div></div>
+      <div class="panel-body">
+        <table class="summary-table">
+          <thead><tr><th>Outcome metric</th><th>Your result</th><th>Industry benchmark</th></tr></thead>
+          <tbody>
+            <tr><td class="metric-name">Total submissions received</td><td><span class="metric-value">${fmt(r.totalSubs)}</span></td><td class="metric-bench"><span class="bench-badge">Varies by scenario</span></td></tr>
+            <tr><td class="metric-name">Quality rate <span class="metric-def">% of submissions judged as relevant, well-developed, and on-brief</span></td><td><span class="metric-value">${pct(r.quality)}</span> <span style="font-size:13px;color:var(--text-light)">(~${fmt(qCount)} ideas)</span></td><td class="metric-bench"><span class="bench-badge">Avg: 10–15%</span></td></tr>
+            <tr><td class="metric-name">Novelty rate <span class="metric-def">% of submissions that introduce a genuinely new direction not already on the company's roadmap</span></td><td><span class="metric-value">${pct(r.novelty)}</span> <span style="font-size:13px;color:var(--text-light)">(~${fmt(nCount)} ideas)</span></td><td class="metric-bench"><span class="bench-badge">Avg: 8–12%</span></td></tr>
+            <tr><td class="metric-name">Retention rate <span class="metric-def">% of contributors likely to participate again in a future campaign</span></td><td><span class="metric-value">${pct(r.retention)}</span></td><td class="metric-bench"><span class="bench-badge">Avg: 45–60%</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Numbers -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-num">2</div><div class="panel-title">How the Numbers Were Built</div></div>
+      <div class="panel-body">
+        <div class="modifier-section">
+          <div class="mod-title">📊 Submission volume</div>
+          <div class="vol-box">
+            <div class="vol-line"><span class="vl">Base reach (${r.sc.name})</span><span class="vv">${fmt(r.sc.baseReach)}</span></div>
+            <div class="vol-line"><span class="vl">× Exposure rate</span><span class="vv">${(r.sc.exposureRate*100).toFixed(0)}% = ${fmt(r.exposed)} exposed</span></div>
+            <div class="vol-line"><span class="vl">× Channel — ${chanLabel}</span><span class="vv">${CHANNEL_FACTOR[d.channel]}</span></div>
+            <div class="vol-line"><span class="vl">× Invitation — ${invLabel}</span><span class="vv">${INVITE_FACTOR[d.invitation]}</span></div>
+            <div class="vol-line"><span class="vl">× Crowd size — ${crwLabel}</span><span class="vv">${CROWD_FACTOR[d.crowdSize]}</span></div>
+            <div class="vol-line"><span class="vl">× Base submission rate</span><span class="vv">${(r.sc.baseSubRate*100).toFixed(1)}%</span></div>
+            <div class="vol-line vol-total"><span class="vl">= Total submissions</span><span class="vv">${fmt(r.totalSubs)}</span></div>
+          </div>
+        </div>
+        ${buildModTable('Quality rate', r.sc.qualityBase, r.quality, r.qMods, 'quality', sc)}
+        ${buildModTable('Novelty rate', r.sc.noveltyBase, r.novelty, r.nMods, 'novelty', sc)}
+        ${buildModTable('Retention rate', r.sc.retentionBase, r.retention, r.rMods, 'retention', sc)}
+      </div>
+    </div>
+
+    <!-- Decisions recap -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-num">3</div><div class="panel-title">Your Decisions &amp; Justifications</div></div>
+      <div class="panel-body">
+        <div class="replay-grid">${buildReplay(sc)}</div>
+      </div>
+    </div>
+
+    <!-- Diagnosis -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-num">4</div><div class="panel-title">DBAS Diagnosis</div></div>
+      <div class="panel-body" id="diag-body">${buildDiagnosis(r, sc)}</div>
+    </div>
+  `;
+
+  document.getElementById('next-row').innerHTML = `
+    <button class="btn-secondary" onclick="goToDesignerFromResults()">← Revise Decisions</button>
+    <button class="btn-primary" onclick="goToNextScenario()">${nextLabel}</button>
+  `;
+}
+
+function buildModTable(title, base, net, mods, metricKey, scKey) {
+  const icon = {'Quality rate':'✅','Novelty rate':'💡','Retention rate':'🔄'}[title];
+  const rows = mods.map(m => {
+    if (m.delta === 0) return `<tr style="opacity:0.45"><td class="dc">${m.label}</td><td class="cc">${m.chosen}</td><td class="ef delta-zero" style="text-align:right">—</td><td class="rc" style="font-style:italic">No significant direct effect</td></tr>`;
+    const cls = m.delta > 0 ? 'delta-pos' : 'delta-neg';
+    const reasonArr = MOD_REASONS[scKey][m.id][metricKey];
+    const reason = m.choice === 'A' ? reasonArr[0] : reasonArr[1];
+    return `<tr><td class="dc">${m.label}</td><td class="cc">${m.chosen}</td><td class="ef ${cls}">${sign(m.delta)}%</td><td class="rc">${reason}</td></tr>`;
+  }).join('');
+  const netDelta = net - base;
+  const netCls = netDelta >= 0 ? 'delta-pos' : 'delta-neg';
+  return `
+    <div class="modifier-section">
+      <div class="mod-title">${icon} ${title} modifiers (baseline: ${base}%)</div>
+      <table class="modifier-table">
+        <thead><tr><th>Decision</th><th>Your choice</th><th>Effect</th><th>Reasoning</th></tr></thead>
+        <tbody>
+          ${rows}
+          <tr class="net-row"><td colspan="2" class="dc">Net ${title.toLowerCase()}</td><td class="ef ${netCls}">${net}%</td><td class="rc">Baseline ${base}% ${netDelta >= 0 ? '+' : ''}${netDelta}pp from decisions</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function buildReplay(scKey) {
+  const run = state.runs[scKey];
+  return DECISIONS.map(dec => {
+    const choice = run.decisions[dec.id];
+    const chosen = choice === 'A' ? dec.optA : dec.optB;
+    const just = run.justifications[dec.id] || '';
+    return `<div class="replay-chip ${dec.stage}"><div class="rc-dim">${dec.stage} · ${dec.label}</div><div class="rc-choice">${chosen}</div><div class="rc-just">${just}</div></div>`;
+  }).join('');
+}
+
+function buildDiagnosis(r, scKey) {
+  const sc = SCENARIOS[scKey];
+  const d = state.runs[scKey].decisions;
+  const worstQ = [...r.qMods].sort((a,b) => a.delta-b.delta)[0];
+  const bestQ  = [...r.qMods].sort((a,b) => b.delta-a.delta)[0];
+  const worstN = [...r.nMods].sort((a,b) => a.delta-b.delta)[0];
+  const worstR = [...r.rMods].sort((a,b) => a.delta-b.delta)[0];
+
+  let tradeoffBlock = '';
+  for (const qm of r.qMods) {
+    const nm = r.nMods.find(x => x.id === qm.id);
+    if (Math.abs(qm.delta) > 2 && Math.abs(nm.delta) > 2 && Math.sign(qm.delta) !== Math.sign(nm.delta)) {
+      const qual_dir = qm.delta > 0 ? 'helped quality' : 'hurt quality';
+      const nov_dir  = nm.delta > 0 ? 'helped novelty' : 'hurt novelty';
+      tradeoffBlock = `<div class="diag-block warn"><h4>Trade-off: ${qm.label}</h4><p>Choosing <span class="hl">${qm.chosen}</span> ${qual_dir} (${sign(qm.delta)}pp) but simultaneously ${nov_dir} (${sign(nm.delta)}pp). This is a structural tension — the same decision that makes ideas more <em>legible</em> (easy to evaluate) tends to suppress the <em>surprising</em> ideas that don't fit pre-existing categories. You cannot maximise both from this single decision.</p></div>`;
+      break;
+    }
+  }
+
+  return `
+    <div class="diag-block info"><h4>Volume — What drove your submissions</h4>
+    <p>Your total of <strong>${fmt(r.totalSubs)} submissions</strong> was determined by the three BROADCAST decisions working together.
+    ${d.invitation === 'A' && d.crowdSize === 'B' ? `An <span class="hl">open call + large crowd</span> is maximally efficient for volume — no gatekeeping, no friction. The trade-off is a heavier evaluation burden downstream.` :
+      d.invitation === 'B' ? `<span class="hl">Invitation-only</span> significantly limits volume (×0.3 multiplier) but the contributors who participate are pre-qualified — a deliberate quality-for-volume trade.` :
+      `<span class="hl">Small crowd</span> applied a ×0.1 multiplier on reach, limiting volume in exchange for a more focused contributor pool.`}
+    ${sc.context.crowd}</p></div>
+    <div class="diag-block ${worstQ.delta < -4 ? 'neg' : 'pos'}"><h4>Quality — Biggest drag: ${worstQ.label}</h4>
+    <p>Quality landed at <strong>${pct(r.quality)}</strong> (baseline 15%).
+    The single largest quality penalty came from <span class="hl">${worstQ.chosen}</span> (${worstQ.label}: ${sign(worstQ.delta)}pp).
+    ${MOD_REASONS[scKey][worstQ.id].quality[worstQ.choice === 'A' ? 0 : 1]}
+    ${bestQ.delta > 3 ? ` The strongest positive offset came from <span class="hl">${bestQ.chosen}</span> (${bestQ.label}: +${bestQ.delta}pp).` : ''}</p></div>
+    <div class="diag-block ${worstN.delta < -4 ? 'neg' : 'pos'}"><h4>Novelty — Legibility vs surprise</h4>
+    <p>Novelty is <strong>${pct(r.novelty)}</strong> (baseline 10%).
+    The biggest novelty suppressor was <span class="hl">${worstN.chosen}</span> (${worstN.label}: ${sign(worstN.delta)}pp).
+    ${MOD_REASONS[scKey][worstN.id].novelty[worstN.choice === 'A' ? 0 : 1]}
+    Novelty is the hardest outcome to protect because many otherwise sensible decisions — clear briefs, rubrics, crowd voting — all nudge contributors toward <em>legible</em> rather than <em>surprising</em> ideas.</p></div>
+    <div class="diag-block ${worstR.delta < -6 ? 'neg' : 'pos'}"><h4>Retention — Long-term cost of ${worstR.label}</h4>
+    <p>Retention is <strong>${pct(r.retention)}</strong> (benchmark 45–60%).
+    The largest retention drag was <span class="hl">${worstR.chosen}</span> (${worstR.label}: ${sign(worstR.delta)}pp).
+    ${MOD_REASONS[scKey][worstR.id].retention[worstR.choice === 'A' ? 0 : 1]}
+    ${worstR.id === 'ownership' ? sc.context.ip : ''}
+    Retention determines your contributor pipeline for the next campaign — a low rate compounds negatively over time.</p></div>
+    ${tradeoffBlock}
+  `;
+}
+
+// ════════════════════════════════════════════════════════════════
+// COMPARISON + REFLECTION
+// ════════════════════════════════════════════════════════════════
+
+function buildComparison() {
+  const results = {};
+  SCENARIO_ORDER.forEach(sc => { results[sc] = state.runs[sc].results; });
+
+  // Find best value per metric (guard against null if a scenario wasn't run)
+  const best = {
+    subs:  Math.max(...SCENARIO_ORDER.map(sc => results[sc]?.totalSubs ?? 0)),
+    qual:  Math.max(...SCENARIO_ORDER.map(sc => results[sc]?.quality   ?? 0)),
+    nov:   Math.max(...SCENARIO_ORDER.map(sc => results[sc]?.novelty   ?? 0)),
+    ret:   Math.max(...SCENARIO_ORDER.map(sc => results[sc]?.retention ?? 0)),
+  };
+
+  function compCell(sc, val, fmt_fn, bestVal) {
+    const isBest = val === bestVal;
+    return `<td><span class="comp-val" style="color:var(--${sc.toLowerCase()}-color)">${fmt_fn(val)}</span>${isBest ? '<span class="best-marker">best</span>' : ''}</td>`;
+  }
+
+  const compTable = `
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th class="lego">LEGO</th>
+          <th class="siemens">Siemens</th>
+          <th class="spotify">Spotify</th>
+          <th>Benchmark</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="row-label">Total submissions</td>
+          ${SCENARIO_ORDER.map(sc => compCell(sc, results[sc]?.totalSubs ?? 0, fmt, best.subs)).join('')}
+          <td><span class="bench-badge">Varies</span></td>
+        </tr>
+        <tr>
+          <td class="row-label">Quality rate</td>
+          ${SCENARIO_ORDER.map(sc => compCell(sc, results[sc]?.quality   ?? 0, pct, best.qual)).join('')}
+          <td><span class="bench-badge">Avg 10–15%</span></td>
+        </tr>
+        <tr>
+          <td class="row-label">Novelty rate</td>
+          ${SCENARIO_ORDER.map(sc => compCell(sc, results[sc]?.novelty   ?? 0, pct, best.nov)).join('')}
+          <td><span class="bench-badge">Avg 8–12%</span></td>
+        </tr>
+        <tr>
+          <td class="row-label">Retention rate</td>
+          ${SCENARIO_ORDER.map(sc => compCell(sc, results[sc]?.retention ?? 0, pct, best.ret)).join('')}
+          <td><span class="bench-badge">Avg 45–60%</span></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  // Decision diff table (show where choices differed across scenarios)
+  const diffRows = DECISIONS.map(dec => {
+    const choices = SCENARIO_ORDER.map(sc => state.runs[sc].decisions[dec.id]);
+    const allSame = choices.every(c => c === choices[0]);
+    if (allSame) return ''; // skip identical choices
+    const cells = SCENARIO_ORDER.map((sc, i) => {
+      const ch = choices[i];
+      const label = ch ? (ch === 'A' ? dec.optA : dec.optB) : '(Not set)';
+      return `<td style="font-size:12px; color:var(--${sc.toLowerCase()}-color); font-weight:600;">${label}</td>`;
+    }).join('');
+    return `<tr><td class="row-label" style="font-size:12px;">${dec.label}</td>${cells}</tr>`;
+  }).filter(Boolean).join('');
+
+  const diffTable = diffRows ? `
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-header"><div class="panel-num" style="background:#888">≠</div><div class="panel-title">Where Your Decisions Differed Across Scenarios</div></div>
+      <div class="panel-body">
+        <p style="font-size:13px; color:var(--text-light); margin-bottom:12px;">Only decisions where you chose differently appear below. These are the design choices most sensitive to context.</p>
+        <table class="comparison-table">
+          <thead><tr><th>Decision</th><th class="lego">LEGO</th><th class="siemens">Siemens</th><th class="spotify">Spotify</th></tr></thead>
+          <tbody>${diffRows}</tbody>
+        </table>
+      </div>
+    </div>
+  ` : `<div style="background:var(--bg);border-radius:8px;padding:14px;font-size:13px;color:var(--text-light);margin-top:14px;">Your decisions were identical across all three scenarios. Consider whether the same DBAS design is truly optimal for audiences as different as AFOL fans, industrial engineers, and 600M music listeners.</div>`;
+
+  const reflectionPrompts = [
+    {
+      q: 'Context dependency',
+      prompt: 'Where did the same DBAS decision produce the most different outcomes across your three scenarios — and what does this tell you about how crowd context shapes optimal design?',
+      hint: 'Look at the "Decisions That Differed" table above, or think about any decision where you chose differently and why.',
+      placeholder: 'Write 100–200 words here…'
+    },
+    {
+      q: 'Biggest negative impact',
+      prompt: 'Which single decision most damaged outcomes across your campaigns — and why does it have a disproportionate effect relative to the others?',
+      hint: 'Compare the modifier tables across all three results screens. Is it the same decision in each scenario?',
+      placeholder: 'Write 100–200 words here…'
+    },
+    {
+      q: 'Genuine trade-off',
+      prompt: 'Identify one decision where improving quality necessarily hurt novelty (or vice versa). In which scenario was this trade-off most costly — and why?',
+      hint: 'Look for the "Trade-off" block in each scenario\'s diagnosis. Does the same trade-off appear in all three?',
+      placeholder: 'Write 100–200 words here…'
+    },
+    {
+      q: 'DBAS as a cycle',
+      prompt: 'Looking at retention rates across all three campaigns: which company faces the most urgent redesign challenge for its next campaign — and which DBAS stage would you revisit first?',
+      hint: 'Retention is the bridge between campaigns. A low rate means fewer committed contributors next time. Think about which DBAS stage caused the biggest retention drag.',
+      placeholder: 'Write 100–200 words here…'
+    }
+  ];
+
+  const reflectionHTML = reflectionPrompts.map((rp, i) => `
+    <div class="reflect-q">
+      <div class="reflect-header">
+        <div class="reflect-num">${i+1}</div>
+        <div class="reflect-prompt">
+          <strong>${rp.q}</strong>
+          <p>${rp.prompt}</p>
+          <p style="margin-top:4px; font-size:12px; color:#aaa;"><em>Hint: ${rp.hint}</em></p>
+        </div>
+      </div>
+      <textarea class="reflect-area" id="reflect-${i+1}" placeholder="${rp.placeholder}" oninput="saveReflection(${i+1})">${state.reflections['q'+(i+1)]}</textarea>
+      <div class="reflect-counter" id="rc-${i+1}">${(state.reflections['q'+(i+1)] || '').split(/\s+/).filter(Boolean).length} words</div>
+    </div>
+  `).join('');
+
+  document.getElementById('comparison-content').innerHTML = `
+    <div style="margin-bottom:22px;">
+      <div style="font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--text-light); margin-bottom:8px;">Phase 4 — Compare &amp; Reflect</div>
+      <h2 style="font-size:22px; font-weight:800; color:var(--primary); margin-bottom:6px;">Cross-Scenario Results</h2>
+      <p style="font-size:14px; color:var(--text-light); line-height:1.55;">You have now designed three crowdsourcing campaigns. Compare the outcomes, identify where your designs diverged, and write your reflections below.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><div class="panel-num">1</div><div class="panel-title">Summary Comparison</div></div>
+      <div class="panel-body" style="overflow-x:auto;">${compTable}</div>
+    </div>
+
+    ${diffTable}
+
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-header"><div class="panel-num">2</div><div class="panel-title">Step 4 — Reflection (write your answers below)</div></div>
+      <div class="panel-body">${reflectionHTML}</div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+      <button class="btn-secondary" onclick="goToResults()">← Back to Spotify Results</button>
+      <button class="btn-primary" id="submit-reflections-btn" onclick="submitReflections()">Submit Reflections →</button>
+    </div>
+    <div id="submit-confirmation" style="display:none; margin-top:16px; background:rgba(39,174,96,0.1); border:1px solid #27ae60; border-radius:8px; padding:14px 18px; font-size:14px; color:#27ae60; font-weight:600; text-align:center;">
+      ✓ Your reflections have been submitted successfully. You can still revise and resubmit.
+    </div>
+  `;
+}
+
+function saveReflection(n) {
+  const el = document.getElementById('reflect-' + n);
+  const val = el ? el.value : '';
+  state.reflections['q' + n] = val;
+  const words = val.split(/\s+/).filter(Boolean).length;
+  const counter = document.getElementById('rc-' + n);
+  if (counter) counter.textContent = words + ' words';
+}
+
+async function submitReflections() {
+  if (state.studentId) {
+    const saved = await apiPost('/api/reflections', {
+      student_id: state.studentId,
+      q1: state.reflections.q1,
+      q2: state.reflections.q2,
+      q3: state.reflections.q3,
+      q4: state.reflections.q4
+    });
+    if (saved) {
+      showSaveStatus('Reflections submitted ✓', false);
+      const conf = document.getElementById('submit-confirmation');
+      if (conf) conf.style.display = 'block';
+    } else {
+      showSaveStatus('Submission failed — try again', true);
+    }
+  } else {
+    // No backend — just show print prompt
+    showSaveStatus('No backend configured — use Print to save', true);
+  }
+}
+
+</script>
+</body>
+</html>
