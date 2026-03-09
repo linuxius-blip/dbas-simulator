@@ -322,11 +322,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
     </div>
     <div id="reg-form" style="max-width:400px; margin:0 auto 24px; text-align:left; background:var(--card); border-radius:var(--radius); padding:20px 24px; box-shadow:var(--shadow);">
       <div style="font-size:14px; font-weight:700; color:var(--primary); margin-bottom:12px;">Before you begin</div>
-      <label style="font-size:13px; color:var(--text-light); display:block; margin-bottom:4px;">Your name *</label>
-      <input type="text" id="reg-name" placeholder="First and Last name" style="width:100%; padding:9px 11px; font-size:14px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; color:var(--text); margin-bottom:12px;">
-      <label style="font-size:13px; color:var(--text-light); display:block; margin-bottom:4px;">Your email *</label>
-      <input type="email" id="reg-email" placeholder="your.email@esmt.org" style="width:100%; padding:9px 11px; font-size:14px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; color:var(--text); margin-bottom:4px;">
+      <label style="font-size:13px; color:var(--text-light); display:block; margin-bottom:4px;">First name *</label>
+      <input type="text" id="reg-name" placeholder="Your first name" style="width:100%; padding:9px 11px; font-size:14px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; color:var(--text); margin-bottom:4px;">
       <div id="reg-error" style="font-size:12px; color:#e74c3c; display:none; margin-top:4px;"></div>
+      <p style="font-size:11px; color:#aaa; margin-top:8px; line-height:1.4;">Your first name and design choices are stored for course analysis only.</p>
     </div>
     <button class="btn-primary" onclick="startSimulator()">Start with LEGO →</button>
   </div>
@@ -599,10 +598,20 @@ const MOD_REASONS = {
 // STATE
 // ════════════════════════════════════════════════════════════════
 
+// Generate or retrieve a persistent session ID for this browser
+function getSessionId() {
+  let sid = localStorage.getItem('dbas_session_id');
+  if (!sid) {
+    sid = 'sid_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('dbas_session_id', sid);
+  }
+  return sid;
+}
+
 let state = {
   studentId: null,
   studentName: '',
-  studentEmail: '',
+  sessionId: getSessionId(),
   currentScenario: 'LEGO',
   currentView: 'welcome',   // welcome | designer | results | comparison
   runs: {
@@ -640,26 +649,19 @@ function updateProgress() {
 async function startSimulator() {
   // Validate registration
   const name = (document.getElementById('reg-name').value || '').trim();
-  const email = (document.getElementById('reg-email').value || '').trim();
   const errEl = document.getElementById('reg-error');
 
-  if (!name || !email) {
-    errEl.textContent = 'Please enter your name and email to begin.';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (!email.includes('@')) {
-    errEl.textContent = 'Please enter a valid email address.';
+  if (!name) {
+    errEl.textContent = 'Please enter your first name to begin.';
     errEl.style.display = 'block';
     return;
   }
   errEl.style.display = 'none';
 
   state.studentName = name;
-  state.studentEmail = email;
 
   // Register with backend (non-blocking — simulator works even if API is down)
-  const result = await apiPost('/api/students', { name, email });
+  const result = await apiPost('/api/students', { name, session_id: state.sessionId });
   if (result && result.id) {
     state.studentId = result.id;
     showSaveStatus('Registered ✓', false);
