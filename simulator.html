@@ -200,7 +200,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .reflect-num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
 .reflect-prompt strong { display: block; font-size: 14px; color: var(--primary); margin-bottom: 3px; }
 .reflect-prompt p { font-size: 13px; color: var(--text-light); line-height: 1.55; }
-.reflect-area { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; color: var(--text); resize: vertical; min-height: 80px; transition: border-color 0.15s; line-height: 1.5; }
+.reflect-area { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; color: var(--text); resize: vertical; min-height: 50px; transition: border-color 0.15s; line-height: 1.5; }
 .reflect-area:focus { outline: none; border-color: var(--highlight); }
 .reflect-area::placeholder { color: #bbb; }
 .reflect-counter { text-align: right; font-size: 11px; color: var(--text-light); margin-top: 3px; }
@@ -338,12 +338,12 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 <div class="screen" id="screen-designer">
   <div id="designer-scenario-header"></div>
   <p class="screen-subtitle">
-    Work through all 12 decisions for this scenario. Select an option and write a one-sentence justification for each.
+    Work through all 12 decisions for this scenario. Select an option for each.
     Your choices should reflect the specific context, crowd, and goals of this company.
   </p>
   <div class="decision-counter">Decisions completed: <span id="decision-count">0</span> / 12</div>
   <div id="decisions-container"></div>
-  <div class="error-banner" id="error-banner">Please complete all decisions and justifications before running the simulation.</div>
+  <div class="error-banner" id="error-banner">Please complete all 12 decisions before running the simulation.</div>
   <div class="run-row">
     <span class="run-hint" id="run-hint">Complete all 12 decisions to unlock</span>
     <button class="btn-secondary" onclick="goBackFromDesigner()">← Back</button>
@@ -827,7 +827,6 @@ function buildDesigner() {
     stageDecs.forEach(dec => {
       const chosenA = run.decisions[dec.id] === 'A';
       const chosenB = run.decisions[dec.id] === 'B';
-      const justVal = run.justifications[dec.id] || '';
       const row = document.createElement('div');
       row.className = 'decision-row';
       row.innerHTML = `
@@ -839,9 +838,6 @@ function buildDesigner() {
           <input type="radio" class="radio-option" name="${sc}_${dec.id}" id="${sc}_${dec.id}_B" value="B" ${chosenB?'checked':''} onchange="pickDecision('${dec.id}','B')">
           <label class="radio-label" for="${sc}_${dec.id}_B"><span class="radio-dot"></span>${dec.optB}</label>
         </div>
-        <label class="just-label" for="just_${dec.id}">Your one-sentence justification * <span style="font-weight:400;">(more than 20 characters)</span></label>
-        <textarea class="just-field" id="just_${dec.id}" placeholder="Explain why this choice fits this scenario…" oninput="saveJustification('${dec.id}')">${justVal}</textarea>
-        <div class="just-counter ${justVal.length > 0 && justVal.length < 20 ? 'short' : ''}" id="jc_${dec.id}">${justVal.length} chars</div>
       `;
       body.appendChild(row);
     });
@@ -872,23 +868,11 @@ function pickDecision(id, val) {
   updateDecisionCounter();
 }
 
-function saveJustification(id) {
-  const sc = state.currentScenario;
-  const val = (document.getElementById('just_' + id) || {}).value || '';
-  state.runs[sc].justifications[id] = val.trim();
-  const counter = document.getElementById('jc_' + id);
-  if (counter) {
-    counter.textContent = val.length + ' chars';
-    counter.className = 'just-counter' + (val.length > 0 && val.length < 20 ? ' short' : '');
-  }
-  updateDecisionCounter();
-}
-
 function updateDecisionCounter() {
   const run = state.runs[state.currentScenario];
   let done = 0;
   DECISIONS.forEach(d => {
-    if (run.decisions[d.id] && run.justifications[d.id] && run.justifications[d.id].length >= 20) done++;
+    if (run.decisions[d.id]) done++;
   });
   document.getElementById('decision-count').textContent = done;
   const ready = done === DECISIONS.length;
@@ -900,10 +884,7 @@ function validateDecisions() {
   const run = state.runs[state.currentScenario];
   let ok = true;
   DECISIONS.forEach(d => {
-    const jf = document.getElementById('just_' + d.id);
-    if (!run.decisions[d.id] || !run.justifications[d.id] || run.justifications[d.id].length < 20) {
-      ok = false; if (jf) jf.classList.add('error');
-    } else { if (jf) jf.classList.remove('error'); }
+    if (!run.decisions[d.id]) ok = false;
   });
   document.getElementById('error-banner').style.display = ok ? 'none' : 'block';
   return ok;
@@ -1065,8 +1046,7 @@ function buildReplay(scKey) {
   return DECISIONS.map(dec => {
     const choice = run.decisions[dec.id];
     const chosen = choice === 'A' ? dec.optA : dec.optB;
-    const just = run.justifications[dec.id] || '';
-    return `<div class="replay-chip ${dec.stage}"><div class="rc-dim">${dec.stage} · ${dec.label}</div><div class="rc-choice">${chosen}</div><div class="rc-just">${just}</div></div>`;
+    return `<div class="replay-chip ${dec.stage}"><div class="rc-dim">${dec.stage} · ${dec.label}</div><div class="rc-choice">${chosen}</div></div>`;
   }).join('');
 }
 
@@ -1202,27 +1182,27 @@ function buildComparison() {
   const reflectionPrompts = [
     {
       q: 'Context dependency',
-      prompt: 'Where did the same DBAS decision produce the most different outcomes across your three scenarios — and what does this tell you about how crowd context shapes optimal design?',
+      prompt: 'Where did the same DBAS decision produce the most different outcomes across your three scenarios?',
       hint: 'Look at the "Decisions That Differed" table above, or think about any decision where you chose differently and why.',
-      placeholder: 'Write 100–200 words here…'
+      placeholder: '1–2 sentences…'
     },
     {
       q: 'Biggest negative impact',
-      prompt: 'Which single decision most damaged outcomes across your campaigns — and why does it have a disproportionate effect relative to the others?',
+      prompt: 'Which single decision most damaged outcomes across your campaigns?',
       hint: 'Compare the modifier tables across all three results screens. Is it the same decision in each scenario?',
-      placeholder: 'Write 100–200 words here…'
+      placeholder: '1–2 sentences…'
     },
     {
       q: 'Genuine trade-off',
-      prompt: 'Identify one decision where improving quality necessarily hurt novelty (or vice versa). In which scenario was this trade-off most costly — and why?',
+      prompt: 'Identify one decision where improving quality necessarily hurt novelty (or vice versa).',
       hint: 'Look for the "Trade-off" block in each scenario\'s diagnosis. Does the same trade-off appear in all three?',
-      placeholder: 'Write 100–200 words here…'
+      placeholder: '1–2 sentences…'
     },
     {
       q: 'DBAS as a cycle',
-      prompt: 'Looking at retention rates across all three campaigns: which company faces the most urgent redesign challenge for its next campaign — and which DBAS stage would you revisit first?',
-      hint: 'Retention is the bridge between campaigns. A low rate means fewer committed contributors next time. Think about which DBAS stage caused the biggest retention drag.',
-      placeholder: 'Write 100–200 words here…'
+      prompt: 'Which company faces the most urgent redesign challenge for its next campaign, and which DBAS stage would you revisit first?',
+      hint: 'Retention is the bridge between campaigns. A low rate means fewer committed contributors next time.',
+      placeholder: '1–2 sentences…'
     }
   ];
 
