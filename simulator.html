@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DBAS Crowdsourcing Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   --primary: #1a1a2e;
@@ -364,24 +365,54 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 
 <script>
 // ════════════════════════════════════════════════════════════════
-// API CONFIG — set this to your Railway server URL after deploying
+// SUPABASE CONFIG — paste your Project URL and anon public key below
+// (Project Settings → API in the Supabase dashboard)
+// The anon key is safe in client-side code. Do NOT paste service_role.
 // ════════════════════════════════════════════════════════════════
-const API_URL = 'https://web-production-aaae1.up.railway.app';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
 
-async function apiPost(path, body) {
-  if (!API_URL) return null; // silently skip if no backend configured
-  try {
-    const res = await fetch(API_URL + path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn('API save failed:', err.message);
-    return null;
-  }
+const supabase = (SUPABASE_URL.startsWith('http') && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+async function saveStudent(name, session_id) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('students')
+    .upsert({ name: name.trim(), session_id: session_id.trim() }, { onConflict: 'session_id' })
+    .select()
+    .single();
+  if (error) { console.warn('saveStudent failed:', error.message); return null; }
+  return data;
+}
+
+async function saveRun(student_id, scenario, decisions, results) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('scenario_runs')
+    .upsert({ student_id, scenario, decisions, results }, { onConflict: 'student_id,scenario' })
+    .select()
+    .single();
+  if (error) { console.warn('saveRun failed:', error.message); return null; }
+  return data;
+}
+
+async function saveReflectionsRow(student_id, q1, q2, q3, q4) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('reflections')
+    .upsert({
+      student_id,
+      q1_context:  q1 || '',
+      q2_negative: q2 || '',
+      q3_tradeoff: q3 || '',
+      q4_cycle:    q4 || ''
+    }, { onConflict: 'student_id' })
+    .select()
+    .single();
+  if (error) { console.warn('saveReflections failed:', error.message); return null; }
+  return data;
 }
 
 function showSaveStatus(msg, isError) {
@@ -664,7 +695,7 @@ async function startSimulator() {
   state.studentName = name;
 
   // Register with backend (non-blocking — simulator works even if API is down)
-  const result = await apiPost('/api/students', { name, session_id: state.sessionId });
+  const result = await saveStudent(name, state.sessionId);
   if (result && result.id) {
     state.studentId = result.id;
     showSaveStatus('Registered ✓', false);
@@ -706,16 +737,11 @@ async function handleRunClick() {
   // Save to backend
   if (state.studentId) {
     const r = state.runs[sc].results;
-    const saved = await apiPost('/api/runs', {
-      student_id: state.studentId,
-      scenario: sc,
-      decisions: state.runs[sc].decisions,
-      results: {
-        totalSubs: r.totalSubs,
-        qualityRate: r.quality,
-        noveltyRate: r.novelty,
-        retentionRate: r.retention
-      }
+    const saved = await saveRun(state.studentId, sc, state.runs[sc].decisions, {
+      totalSubs: r.totalSubs,
+      qualityRate: r.quality,
+      noveltyRate: r.novelty,
+      retentionRate: r.retention
     });
     if (saved) showSaveStatus(`${sc} results saved ✓`, false);
   }
@@ -1262,13 +1288,13 @@ function saveReflection(n) {
 
 async function submitReflections() {
   if (state.studentId) {
-    const saved = await apiPost('/api/reflections', {
-      student_id: state.studentId,
-      q1: state.reflections.q1,
-      q2: state.reflections.q2,
-      q3: state.reflections.q3,
-      q4: state.reflections.q4
-    });
+    const saved = await saveReflectionsRow(
+      state.studentId,
+      state.reflections.q1,
+      state.reflections.q2,
+      state.reflections.q3,
+      state.reflections.q4
+    );
     if (saved) {
       showSaveStatus('Reflections submitted ✓', false);
       const conf = document.getElementById('submit-confirmation');
