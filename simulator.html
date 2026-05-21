@@ -372,13 +372,15 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 const SUPABASE_URL = 'https://rypzqedzzehxetmarhpq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_VpjPMnxswTKOYFJovKmqaw_IGgLejMx';
 
-const supabase = (SUPABASE_URL.startsWith('http') && window.supabase)
+// NB: don't name this `supabase` — the CDN bundle already declares that
+// identifier at script scope, which would throw "already declared".
+const sb = (SUPABASE_URL.startsWith('http') && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
 async function saveStudent(name, session_id) {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!sb) return null;
+  const { data, error } = await sb
     .from('students')
     .upsert({ name: name.trim(), session_id: session_id.trim() }, { onConflict: 'session_id' })
     .select()
@@ -388,8 +390,8 @@ async function saveStudent(name, session_id) {
 }
 
 async function saveRun(student_id, scenario, decisions, results) {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!sb) return null;
+  const { data, error } = await sb
     .from('scenario_runs')
     .upsert({ student_id, scenario, decisions, results }, { onConflict: 'student_id,scenario' })
     .select()
@@ -399,8 +401,8 @@ async function saveRun(student_id, scenario, decisions, results) {
 }
 
 async function saveReflectionsRow(student_id, q1, q2, q3, q4) {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!sb) return null;
+  const { data, error } = await sb
     .from('reflections')
     .upsert({
       student_id,
